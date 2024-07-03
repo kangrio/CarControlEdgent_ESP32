@@ -22,7 +22,7 @@
 
 // #define LED_BUILTIN 2
 
-#define VCC_STATE_PIN 36 
+#define VCC_STATE_PIN 36
 
 #define CLOSE_DOOR_PIN 32
 #define OPEN_DOOR_PIN 33
@@ -415,10 +415,18 @@ void restartEverydayAt3AM() {
 
 void requestObdStaySendDoorLockData() {
   // if (myCarState.carDoorLockedState) {
+  checkCarBatterySoc();
   LOG_PRINT.println("requestObdStaySendDoorLockData()");
   Serial.println("requestObdStaySendDoorLockData()");
   sendObd0100();
   // }
+}
+
+uint8_t carBatterySoc = 0;
+void checkCarBatterySoc() {
+  if (myCarState.carBatterySoc != carBatterySoc) {
+    setCarStatus();
+  }
 }
 
 bool isCarDoorLocked = true;
@@ -441,6 +449,7 @@ void checkCarDoorLockState() {
     }
   }
 }
+
 
 
 void checkCarVccTurnedOnState() {
