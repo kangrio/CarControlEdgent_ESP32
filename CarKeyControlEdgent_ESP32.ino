@@ -364,7 +364,7 @@ BLYNK_CONNECTED() {
   timer2.setInterval(1000L, checkCarDoorLockState);
   timer2.setInterval(200L, checkCarVccTurnedOnState);
   timer2.setInterval(10000L, requestObdStaySendDoorLockData);
-  // timer2.setInterval(200L, checkCarVccState);
+
   timer2.setTimeout(200L, notifyDeviceOnline);
 }
 

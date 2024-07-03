@@ -61,7 +61,7 @@ unsigned long buffer2unsignedLong(int startByte = 0, int bytesCount = 0, CanFram
 }
 
 void setCarDoorState(uint8_t state) {
-  if (state == 0x0) {
+  if (state == 0xFC) {
     if (myCarState.carDoorLockedState == false) {
       myCarState.carDoorLockedState = true;
     }
@@ -128,7 +128,7 @@ void Obd2Run() {
         //   LOG_PRINT.print(" ");
         // }
         // LOG_PRINT.println();
-        setCarDoorState(rxFrame.data[2]);
+        setCarDoorState(rxFrame.data[0]);
         break;
       case 0x055:
         setCarVccTurnedOnState(rxFrame.data[4]);
