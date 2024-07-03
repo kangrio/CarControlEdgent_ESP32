@@ -1,0 +1,11 @@
+Secrets.h
+.DS_Store
+bin/*/
+*build-*
+*build*
+build-tmp/
+Makefile
+doc/
+debug.txt
+.ycm_extra_conf.pyc
+.ropeproject
