@@ -3,6 +3,9 @@
 /* Uncomment below for use in production */
 // #define DEBUG_MODE
 
+/* Uncomment for use Serial */
+// #define USE_REMOTE_SERIAL
+
 #define BLYNK_TEMPLATE_ID "TMPL6BR474jmt"
 #define BLYNK_TEMPLATE_NAME "Engine"
 
@@ -13,7 +16,13 @@
 #define BLYNK_FIRMWARE_VERSION "1.0.13"
 
 #define BLYNK_PRINT Serial
+
+#ifdef USE_REMOTE_SERIAL
+#define LOG_PRINT RemoteSerial
+#else
 #define LOG_PRINT Serial
+#endif
+
 // #define LOG_PRINT RemoteSerial
 //#define BLYNK_DEBUG
 
@@ -387,7 +396,7 @@ void restartEverydayAt3AM() {
 
 void requestObdStaySendDoorLockData() {
   // if (myCarState.carDoorLockedState) {
-  LOG_PRINT.println("requestObdStaySendDoorLockData()");
+  // LOG_PRINT.println("requestObdStaySendDoorLockData()");
   sendObd0100();
   // }
 }

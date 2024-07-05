@@ -446,8 +446,9 @@ void enterConnectNet() {
       BLYNK_LOG_IP("Using Dynamic IP: ", localip);
     }
 
-    // startRemoteSerialMonitor();
-
+#ifdef USE_REMOTE_SERIAL
+    startRemoteSerialMonitor();
+#endif
     connectNetRetries = WIFI_CLOUD_MAX_RETRIES;
     BlynkState::set(MODE_CONNECTING_CLOUD);
   } else if (--connectNetRetries <= 0) {

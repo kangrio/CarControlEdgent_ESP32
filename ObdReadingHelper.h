@@ -1,3 +1,4 @@
+#include "driver/twai.h"
 #include "esp32-hal.h"
 #include <ESP32-TWAI-CAN.hpp>
 
@@ -203,9 +204,63 @@ void setCarBatterySoc(CanFrame frame) {
   myCarState.carBatterySoc = frame.data[4];
 }
 
+
+int maxLine = 40;
+
+int lineNumer = 0;
+CanFrame preFrame[0xFF];
+
+void printFrameCompare(CanFrame *message, int frameLine) {
+  LOG_PRINT.print("0x");
+  LOG_PRINT.print(message->identifier, HEX);
+  if (message->extd) LOG_PRINT.print(" X ");
+  else LOG_PRINT.print(" S ");
+  LOG_PRINT.print(message->data_length_code, DEC);
+  LOG_PRINT.print(" ");
+  for (int i = 0; i < 6; i++) {
+    if (message->data[i] != preFrame[frameLine].data[i]) {
+      LOG_PRINT.print("*");
+    }
+    LOG_PRINT.print(message->data[i], HEX);
+    LOG_PRINT.print(" ");
+  }
+  LOG_PRINT.println();
+}
+
+void monitorPid(CanFrame frame) {
+
+  for (int i = 0x0; i < lineNumer; i++) {
+    if (frame.identifier == printtedPids[i]) {
+      Serial.print("\033[H");
+      Serial.printf("\033[%dB", i);
+      printFrameCompare(&frame, i);
+
+      preFrame[i].identifier = frame.identifier;
+      for (int j = 0; j < frame.data_length_code; j++) {
+        preFrame[i].data[j] = frame.data[j];
+      }
+      return;
+    }
+  }
+
+  printtedPids[lineNumer] = frame.identifier;
+
+  Serial.print("\033[H");
+  Serial.printf("\033[%dB", lineNumer);
+  printFrame2(&frame);
+  if (lineNumer < maxLine) {
+    lineNumer++;
+  }
+}
+
+
 void Obd2Run() {
   twai_status_info_t status_info;
   twai_get_status_info(&status_info);
+
+  if (status_info.state != TWAI_STATE_RUNNING) {
+    return;
+  }
 
   // serialReading();
 
@@ -232,7 +287,7 @@ void Obd2Run() {
     return;
   }
 
-  if (ESP32Can.readFrame(rxFrame, 1)) {
+  if (ESP32Can.readFrame(rxFrame, 5)) {
     switch (rxFrame.identifier) {
       case 0x32C:
         setCarDoorState(rxFrame.data[0]);
@@ -250,7 +305,7 @@ void Obd2Run() {
         setCarBatterySoc(rxFrame);
         break;
       default:
-        // printFrame(&rxFrame);
+        // monitorPid(rxFrame);
         break;
     }
   }
@@ -325,7 +380,19 @@ bool sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t tx
   }
 
   // Accepts both pointers and references
-  return ESP32Can.writeFrame(obdFrame, 50);  // timeout defaults to 1 ms
+  // return ESP32Can.writeFrame(obdFrame, 10);  // timeout defaults to 1 ms
+
+  int numRetry = 0;
+  while (1) {
+    if (numRetry > 10) return false;
+    if (ESP32Can.writeFrame(obdFrame, 10)) {
+      return true;
+    } else {
+      numRetry++;
+    }
+  }
+
+  return false;
 }
 
 
