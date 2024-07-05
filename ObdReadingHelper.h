@@ -1,3 +1,4 @@
+#include "esp32-hal.h"
 #include <ESP32-TWAI-CAN.hpp>
 
 
@@ -60,6 +61,114 @@ unsigned long buffer2unsignedLong(int startByte = 0, int bytesCount = 0, CanFram
   return result;
 }
 
+bool isMonitor = false;
+
+void serialReadingNow() {
+  return;
+  if (Serial.available()) {
+    char str = Serial.read();
+    Serial.println(str);
+    if (str == 'y') {
+      isMonitor = true;
+    } else if (str == 'n') {
+      isMonitor = false;
+    }
+  }
+}
+
+void printFrame2(CanFrame *message) {
+  LOG_PRINT.print("0x");
+  LOG_PRINT.print(message->identifier, HEX);
+  if (message->extd) LOG_PRINT.print(" X ");
+  else LOG_PRINT.print(" S ");
+  LOG_PRINT.print(message->data_length_code, DEC);
+  LOG_PRINT.print(" ");
+  for (int i = 0; i < message->data_length_code; i++) {
+    LOG_PRINT.print(message->data[i], HEX);
+    LOG_PRINT.print(" ");
+  }
+  LOG_PRINT.println();
+}
+
+uint32_t printtedPids[0xFF];
+int printtedIndex = 0;
+
+void printFrame(CanFrame *message) {
+  if (millis() < 10000) {
+    return;
+  }
+  // if (!isMonitor) {
+  //   return;
+  // }
+  for (int i = 0x0; i < printtedIndex; i++) {
+    if (message->identifier == printtedPids[i]) {
+      return;
+    }
+  }
+  LOG_PRINT.print("0x");
+  LOG_PRINT.print(message->identifier, HEX);
+  if (message->extd) LOG_PRINT.print(" X ");
+  else LOG_PRINT.print(" S ");
+  LOG_PRINT.print(message->data_length_code, DEC);
+  LOG_PRINT.print(" ");
+  for (int i = 0; i < message->data_length_code; i++) {
+    LOG_PRINT.print(message->data[i], HEX);
+    LOG_PRINT.print(" ");
+  }
+  LOG_PRINT.println();
+  printtedPids[printtedIndex] = message->identifier;
+  printtedIndex++;
+}
+
+bool onDRL = true;
+long startToggleDRLTime = 0;
+void toggleDRL() {
+  if (millis() - startToggleDRLTime < 2000) {
+    return;
+  }
+  startToggleDRLTime = millis();
+
+  uint8_t dataOn[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40 };
+  uint8_t dataOff[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80 };
+
+  CanFrame obdFrame = { 0 };
+
+  if (onDRL == true) {
+    obdFrame.identifier = 0x431;  // OBD2 address;
+    obdFrame.extd = 0;
+    obdFrame.data_length_code = 8;
+    obdFrame.data[0] = 0x0;
+    obdFrame.data[1] = 0x0;
+    obdFrame.data[2] = 0x0;
+    obdFrame.data[3] = 0x0;
+    obdFrame.data[4] = 0x0;
+    obdFrame.data[5] = 0x0;
+    obdFrame.data[6] = 0x0;
+    obdFrame.data[7] = 0x40;
+
+    ESP32Can.writeFrame(obdFrame, 50);
+
+    // sendAndReceiveObdFrame(0x431, 0x7E8, dataOn, 0);
+    onDRL = false;
+  } else {
+    // sendAndReceiveObdFrame(0x431, 0x7E8, dataOff, 0);
+    obdFrame.identifier = 0x431;  // OBD2 address;
+    obdFrame.extd = 0;
+    obdFrame.data_length_code = 8;
+    obdFrame.data[0] = 0x0;
+    obdFrame.data[1] = 0x0;
+    obdFrame.data[2] = 0x0;
+    obdFrame.data[3] = 0x0;
+    obdFrame.data[4] = 0x0;
+    obdFrame.data[5] = 0x0;
+    obdFrame.data[6] = 0x0;
+    obdFrame.data[7] = 0x80;
+
+    ESP32Can.writeFrame(obdFrame, 50);
+    onDRL = true;
+  }
+}
+
 void setCarDoorState(uint8_t state) {
   if (state == 0xFC) {
     if (myCarState.carDoorLockedState == false) {
@@ -98,6 +207,10 @@ void Obd2Run() {
   twai_status_info_t status_info;
   twai_get_status_info(&status_info);
 
+  // serialReading();
+
+  // toggleDRL();
+
   // switch (status_info.state) {
   //   case TWAI_STATE_RUNNING:
   //     Serial.println("TWAI_STATE_RUNNING");
@@ -119,15 +232,9 @@ void Obd2Run() {
     return;
   }
 
-  if (ESP32Can.readFrame(rxFrame, 50)) {
+  if (ESP32Can.readFrame(rxFrame, 1)) {
     switch (rxFrame.identifier) {
       case 0x32C:
-        // LOG_PRINT.print("Door Status=> ");
-        // for (int i = 0; i < 8; i++) {
-        //   LOG_PRINT.print(rxFrame.data[i]);
-        //   LOG_PRINT.print(" ");
-        // }
-        // LOG_PRINT.println();
         setCarDoorState(rxFrame.data[0]);
         break;
       case 0x055:
@@ -143,6 +250,7 @@ void Obd2Run() {
         setCarBatterySoc(rxFrame);
         break;
       default:
+        // printFrame(&rxFrame);
         break;
     }
   }
@@ -195,7 +303,7 @@ int obdCheckCarDoorLockState() {
   return 0;
 }
 
-void sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t txData[], uint8_t txDataSize) {
+bool sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t txData[], uint8_t txDataSize) {
   CanFrame obdFrame = { 0 };
   uint8_t dataSize = txDataSize;
   // Serial.println(dataSize);
@@ -217,16 +325,16 @@ void sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t tx
   }
 
   // Accepts both pointers and references
-  ESP32Can.writeFrame(obdFrame);  // timeout defaults to 1 ms
+  return ESP32Can.writeFrame(obdFrame, 50);  // timeout defaults to 1 ms
 }
 
 
-void sendDefaultObdFrame(uint8_t obdId) {
+bool sendDefaultObdFrame(uint8_t obdId) {
   uint8_t data[] = { 0x01, obdId };
-  sendAndReceiveObdFrame(0x7DF, 0x7E8, data, sizeof(data) / sizeof(data[0]));
+  return sendAndReceiveObdFrame(0x7DF, 0x7E8, data, sizeof(data) / sizeof(data[0]));
 }
 
-void sendObdFrame(uint8_t obdId) {
+bool sendObdFrame(uint8_t obdId) {
   uint8_t data[] = { 0x22, 0x00, obdId };
-  sendAndReceiveObdFrame(0x7E7, 0x7EF, data, sizeof(data) / sizeof(data[0]));
+  return sendAndReceiveObdFrame(0x7E7, 0x7EF, data, sizeof(data) / sizeof(data[0]));
 }
