@@ -64,7 +64,9 @@ bool isVccOn = false;
 bool isLockButtonPressed = false;
 bool isUnLockButtonPressed = false;
 
-bool isCarVccTurnedOn = true;
+bool isCarVccTurnedOn = false;
+bool isCarDoorLocked = false;
+
 
 void setupArduinoOTA() {
   ArduinoOTA.setPasswordHash(passWordHashed);
@@ -142,19 +144,6 @@ void VCC_STATE() {
 }
 
 
-void updateCarVccStatus() {
-  if (isVccOn) {
-    isVccOn = false;
-    Blynk.virtualWrite(V1, "Stopped");
-    LOG_PRINT.println("Stopped");
-
-  } else {
-    isVccOn = true;
-    Blynk.virtualWrite(V1, "Started");
-    LOG_PRINT.println("Started");
-  }
-}
-
 void CLOSE_DOOR() {
   LOG_PRINT.println("Door close");
 
@@ -211,6 +200,7 @@ BLYNK_WRITE(V0) {
     POWER_ON_REMOTE();
     timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
   } else {
+    sendObd0100();
     sendObdFrame(0x05);
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
@@ -414,7 +404,6 @@ void checkCarBatterySoc() {
   }
 }
 
-bool isCarDoorLocked = true;
 void checkCarDoorLockState() {
   if (myCarState.carVccTurnedOnState) {
     setCarStatus();
