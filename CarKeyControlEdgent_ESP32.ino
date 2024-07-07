@@ -13,7 +13,7 @@
 // #define BLYNK_TEMPLATE_ID "TMPL6p6MOW2KD"
 // #define BLYNK_TEMPLATE_NAME "EngineCopy"
 
-#define BLYNK_FIRMWARE_VERSION "1.0.13"
+#define BLYNK_FIRMWARE_VERSION "1.0.14"
 
 #define BLYNK_PRINT Serial
 
@@ -67,6 +67,8 @@ bool isUnLockButtonPressed = false;
 bool isCarVccTurnedOn = false;
 bool isCarDoorLocked = false;
 
+
+bool isSetupComplete = false;
 
 void setupArduinoOTA() {
   ArduinoOTA.setPasswordHash(passWordHashed);
@@ -338,16 +340,17 @@ BLYNK_CONNECTED() {
   Blynk.sendInternal("utc", "tz_rule");  // POSIX TZ rule
   Blynk.syncAll();
 
-  // startRemoteSerialMonitor();
-
-
-  setupArduinoOTA();
-
-  timer2.setInterval(1000L, checkCarStatus);
-
-  // timer2.setInterval(10000L, requestObdStaySendDoorLockData);
-
   timer2.setTimeout(200L, notifyDeviceOnline);
+
+
+  if (!isSetupComplete) {
+    setupArduinoOTA();
+    timer2.setInterval(1000L, checkCarStatus);
+    isSetupComplete = true;
+    // startRemoteSerialMonitor();
+  }
+  // setupArduinoOTA();
+  // timer2.setInterval(1000L, checkCarStatus);
 }
 
 BLYNK_WRITE(InternalPinUTC) {
@@ -405,16 +408,11 @@ void checkCarBatterySoc() {
 }
 
 void checkCarDoorLockState() {
-  if (myCarState.carVccTurnedOnState) {
-    setCarStatus();
-    return;
-  }
-
-
   if (myCarState.carDoorLockedState == true) {
     if (isCarDoorLocked == false) {
       isCarDoorLocked = true;
       notifyCarDoorLocked();
+      setCarStatus();
       LOG_PRINT.println("Car Door is Locked");
     }
   } else {
@@ -452,8 +450,7 @@ void setCarStatus() {
   if (isCarVccTurnedOn == myCarState.carVccTurnedOnState && isCarDoorLocked == myCarState.carDoorLockedState && carBatterySoc == myCarState.carBatterySoc) return;
 
   String textVccState = (isCarVccTurnedOn) ? "✅" : "🚫";
-  String textDoorState = (isCarVccTurnedOn) ? "Err" : (isCarDoorLocked) ? "✅"
-                                                                        : "🚫";
+  String textDoorState = (isCarDoorLocked) ? "✅" : "🚫";
   String textState = String("Started: ") + textVccState + String(", Locked: ") + textDoorState + ", Soc: " + String(myCarState.carBatterySoc) + "%";
   Blynk.virtualWrite(V1, textState);
 }

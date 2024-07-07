@@ -171,7 +171,8 @@ void toggleDRL() {
 }
 
 void setCarDoorState(uint8_t state) {
-  if (state == 0xFC) {
+  if (state == 0xAA) {
+    /* All Door Locked */
     if (myCarState.carDoorLockedState == false) {
       myCarState.carDoorLockedState = true;
     }
@@ -289,7 +290,7 @@ void Obd2Run() {
 
   if (ESP32Can.readFrame(rxFrame, 5)) {
     switch (rxFrame.identifier) {
-      case 0x32C:
+      case 0x407:
         setCarDoorState(rxFrame.data[0]);
         break;
       case 0x055:
