@@ -13,9 +13,11 @@
 // #define BLYNK_TEMPLATE_ID "TMPL6p6MOW2KD"
 // #define BLYNK_TEMPLATE_NAME "EngineCopy"
 
-#define BLYNK_FIRMWARE_VERSION "1.0.14"
+#define BLYNK_FIRMWARE_VERSION "1.0.15"
 
 #define BLYNK_PRINT Serial
+//#define BLYNK_DEBUG
+
 
 #ifdef USE_REMOTE_SERIAL
 #define LOG_PRINT RemoteSerial
@@ -23,8 +25,6 @@
 #define LOG_PRINT Serial
 #endif
 
-// #define LOG_PRINT RemoteSerial
-//#define BLYNK_DEBUG
 
 
 #define APP_DEBUG
@@ -43,37 +43,42 @@
 // Uncomment your board, or configure a custom board in Settings.h
 #define USE_ESP32_DEV_MODULE
 
-// #include <ESPAsyncWebServer.h>
-// #include <RemoteSerial.h>
 #include <ArduinoOTA.h>
 #include <ezTime.h>
 #include "BlynkEdgent.h"
 #include "Secrets.h"
 
+bool isSetupComplete = false;
 
-long sleepTimeForTurnOnKey = 300L;
 
 BlynkTimer timer;
 BlynkTimer timer2;
 Timezone local;
 
-int sleepTime = 5 * 60 * 1000;
+int sleepTimeForCheckingReboot = 5 * 60 * 1000;
 
-bool isVccOn = false;
+/* Car Status infomation */
+bool isCarVccTurnedOn = false;
+bool isCarDoorLocked = false;
+bool isCarTrunkClosed = false;
+uint8_t carBatterySoc = 0;
 
+
+
+
+/* Key press Var */
+long sleepTimeForTurnOnKey = 300L;
+
+long startPressedTime = 0;
 bool isLockButtonPressed = false;
 bool isUnLockButtonPressed = false;
 
-bool isCarVccTurnedOn = false;
-bool isCarDoorLocked = false;
-
-
-bool isSetupComplete = false;
 
 void setupArduinoOTA() {
   ArduinoOTA.setPasswordHash(passWordHashed);
   ArduinoOTA.onStart([]() {
     Blynk.disconnect();
+    TwaiStop();
 
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
@@ -202,7 +207,7 @@ BLYNK_WRITE(V0) {
     POWER_ON_REMOTE();
     timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
   } else {
-    sendObd0100();
+    // sendObd0100();
     sendObdFrame(0x05);
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
@@ -210,11 +215,9 @@ BLYNK_WRITE(V0) {
     RESET_ALL_KEY();
     POWER_OFF_REMOTE();
 
-    setCarStatus();
+    updateCarStatus();
   }
 }
-
-long startPressedTime = 0;
 
 // Lock BUtton
 BLYNK_WRITE(V2) {
@@ -335,6 +338,16 @@ void notifyCarDoorUnLocked() {
   Blynk.logEvent("atto3_door_unlocked");
 }
 
+// void notifyCarTrunkClosed() {
+//   LOG_PRINT.println("Sending notifyCarTrunkClosed");
+//   Blynk.logEvent("atto3_trunk_closed");
+// }
+
+// void notifyCarTrunkOpenned() {
+//   LOG_PRINT.println("Sending notifyCarTrunkOpenned");
+//   Blynk.logEvent("atto3_trunk_openned");
+// }
+
 BLYNK_CONNECTED() {
   Blynk.sendInternal("utc", "time");     // Unix timestamp (with msecs)
   Blynk.sendInternal("utc", "tz_rule");  // POSIX TZ rule
@@ -342,6 +355,11 @@ BLYNK_CONNECTED() {
 
   timer2.setTimeout(200L, notifyDeviceOnline);
 
+  timer2.setTimeout(1000L, []() {
+    sendObd0100();
+    sendObdFrame(0x05);
+    updateCarStatus();
+  });
 
   if (!isSetupComplete) {
     setupArduinoOTA();
@@ -349,8 +367,6 @@ BLYNK_CONNECTED() {
     isSetupComplete = true;
     // startRemoteSerialMonitor();
   }
-  // setupArduinoOTA();
-  // timer2.setInterval(1000L, checkCarStatus);
 }
 
 BLYNK_WRITE(InternalPinUTC) {
@@ -397,30 +413,43 @@ void requestObdStaySendDoorLockData() {
 void checkCarStatus() {
   checkCarVccTurnedOnState();
   checkCarDoorLockState();
+  checkCarTrunkClosedState();
   checkCarBatterySoc();
 }
 
-uint8_t carBatterySoc = 0;
 void checkCarBatterySoc() {
   if (myCarState.carBatterySoc != carBatterySoc) {
-    setCarStatus();
+    carBatterySoc = myCarState.carBatterySoc;
+    updateCarStatus();
   }
 }
 
 void checkCarDoorLockState() {
-  if (myCarState.carDoorLockedState == true) {
-    if (isCarDoorLocked == false) {
-      isCarDoorLocked = true;
+  if (isCarDoorLocked != myCarState.carDoorLockedState) {
+    isCarDoorLocked = myCarState.carDoorLockedState;
+    if (isCarDoorLocked) {
       notifyCarDoorLocked();
-      setCarStatus();
+      updateCarStatus();
       LOG_PRINT.println("Car Door is Locked");
-    }
-  } else {
-    if (isCarDoorLocked == true) {
-      isCarDoorLocked = false;
+    } else {
       notifyCarDoorUnLocked();
-      setCarStatus();
+      updateCarStatus();
       LOG_PRINT.println("Car Door is UnLocked");
+    }
+  }
+}
+
+void checkCarTrunkClosedState() {
+  if (isCarTrunkClosed != myCarState.carTrunkClosedState) {
+    isCarTrunkClosed = myCarState.carTrunkClosedState;
+    if (isCarTrunkClosed) {
+      // notifyCarTrunkClosed();
+      updateCarStatus();
+      LOG_PRINT.println("Car Trunk is Openned");
+    } else {
+      // notifyCarTrunkOpenned();
+      updateCarStatus();
+      LOG_PRINT.println("Car Trunk is Closed");
     }
   }
 }
@@ -428,30 +457,27 @@ void checkCarDoorLockState() {
 
 
 void checkCarVccTurnedOnState() {
-  // LOG_PRINT.println(myCarState.carVccTurnedOnState);
-  if (myCarState.carVccTurnedOnState == true) {
-    if (isCarVccTurnedOn == false) {
-      isCarVccTurnedOn = true;
-      setCarStatus();
+  if (isCarVccTurnedOn != myCarState.carVccTurnedOnState) {
+    isCarVccTurnedOn = myCarState.carVccTurnedOnState;
+    if (isCarVccTurnedOn) {
+      updateCarStatus();
       notifyCarAccStarted();
       LOG_PRINT.println("Car is Started");
-    }
-  } else {
-    if (isCarVccTurnedOn == true) {
-      isCarVccTurnedOn = false;
-      setCarStatus();
+    } else {
+      updateCarStatus();
       notifyCarAccStopped();
       LOG_PRINT.println("Car is Stopped");
     }
   }
 }
 
-void setCarStatus() {
-  if (isCarVccTurnedOn == myCarState.carVccTurnedOnState && isCarDoorLocked == myCarState.carDoorLockedState && carBatterySoc == myCarState.carBatterySoc) return;
+void updateCarStatus() {
+  // if (isCarVccTurnedOn == myCarState.carVccTurnedOnState && isCarDoorLocked == myCarState.carDoorLockedState && carBatterySoc == myCarState.carBatterySoc) return;
 
   String textVccState = (isCarVccTurnedOn) ? "✅" : "🚫";
   String textDoorState = (isCarDoorLocked) ? "✅" : "🚫";
-  String textState = String("Started: ") + textVccState + String(", Locked: ") + textDoorState + ", Soc: " + String(myCarState.carBatterySoc) + "%";
+  String textTrunkState = (isCarTrunkClosed) ? "✅" : "🚫";
+  String textState = String("Started: ") + textVccState + String(", Locked: ") + textDoorState + ", Trunk: " + textTrunkState + ", Soc: " + String(carBatterySoc) + "%";
   Blynk.virtualWrite(V1, textState);
 }
 
@@ -466,9 +492,6 @@ void sendObd0100() {
 void setup() {
   Serial.begin(9600);
 
-  // pinMode(VCC_STATE_PIN, INPUT_PULLDOWN);
-
-  // pinMode(LED_BUILTIN, OUTPUT);
   pinMode(CLOSE_DOOR_PIN, OUTPUT);
   pinMode(OPEN_DOOR_PIN, OUTPUT);
   pinMode(TOGGLE_TRUNK_PIN, OUTPUT);
@@ -476,7 +499,6 @@ void setup() {
   pinMode(POWER_PIN, OUTPUT);
   pinMode(GND_PIN, OUTPUT);
 
-  // digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(CLOSE_DOOR_PIN, HIGH);
   digitalWrite(OPEN_DOOR_PIN, HIGH);
   digitalWrite(TOGGLE_TRUNK_PIN, HIGH);
@@ -490,9 +512,7 @@ void setup() {
   TwaiBegin();
 
   BlynkEdgent.begin();
-  timer2.setInterval(sleepTime, restartEverydayAt3AM);
-  // timer2.setInterval(1000, readVoltPin);
-  // timer2.setInterval(1000, testObd);
+  timer2.setInterval(sleepTimeForCheckingReboot, restartEverydayAt3AM);
 }
 
 void serialReading() {

@@ -10,6 +10,7 @@ CarKeyControlEdgent_ESP32 is a project designed to enable users to control their
 - [x] **Car Status Monitoring:**
   - [x] **Engine Status:** Check if the engine is on or off.
   - [x] **Door Lock Status:** Verify whether the doors are locked.
+  - [x] **Trunk Status:** Verify trunk close or oprn
   - [x] **State of Charge (SoC):** Monitor the remaining charge of the car's battery.
 
 ## Hardware Components
