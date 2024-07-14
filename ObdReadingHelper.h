@@ -160,7 +160,7 @@ void toggleDRL() {
     obdFrame.data[6] = 0x0;
     obdFrame.data[7] = 0x40;
 
-    ESP32Can.writeFrame(obdFrame, 0);
+    ESP32Can.writeFrame(obdFrame, 1);
 
     // sendAndReceiveObdFrame(0x431, 0x7E8, dataOn, 0);
     onDRL = false;
@@ -178,7 +178,7 @@ void toggleDRL() {
     obdFrame.data[6] = 0x0;
     obdFrame.data[7] = 0x80;
 
-    ESP32Can.writeFrame(obdFrame, 0);
+    ESP32Can.writeFrame(obdFrame, 1);
     onDRL = true;
   }
 }
@@ -284,7 +284,7 @@ void Obd2Run() {
     return;
   }
 
-  if (ESP32Can.readFrame(rxFrame, 0)) {
+  if (ESP32Can.readFrame(rxFrame, 1)) {
     switch (rxFrame.identifier) {
       case 0x407:
         // printFrame2(&rxFrame);
@@ -361,11 +361,12 @@ bool sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t tx
   // return ESP32Can.writeFrame(obdFrame, 10);  // timeout defaults to 1 ms
 
 
-  int maxRetry = 10;
-  for (int i = 0; i < maxRetry; i++) {
-    if (ESP32Can.writeFrame(obdFrame, 0)) {
-      for (int j = 0; j < 10; j++) {
-        if (ESP32Can.readFrame(rxFrame, 0)) {
+  int maxWriteRetry = 10;
+  int maxReadRetry = 20;
+  for (int i = 0; i < maxWriteRetry; i++) {
+    if (ESP32Can.writeFrame(obdFrame, 1)) {
+      for (int j = 0; j < maxReadRetry; j++) {
+        if (ESP32Can.readFrame(rxFrame, 1)) {
           if (rxFrame.identifier == rxmoduleid) {
             LOG_PRINT.print("Data Polling=> ");
             LOG_PRINT.print(rxFrame.identifier, HEX);
