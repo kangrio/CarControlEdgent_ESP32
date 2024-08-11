@@ -41,6 +41,7 @@ typedef struct {
   bool carDoorLockedState = false;
   bool carTrunkClosedState = false;
   uint8_t carBatterySoc = 0;
+  uint8_t car12VBatteryVoltage = 0;
 } carState;
 
 carState myCarState;
@@ -284,7 +285,7 @@ void Obd2Run() {
     return;
   }
 
-  if (ESP32Can.readFrame(rxFrame, 1)) {
+  if (ESP32Can.readFrame(rxFrame, 5)) {
     switch (rxFrame.identifier) {
       case 0x407:
         // printFrame2(&rxFrame);
@@ -364,9 +365,9 @@ bool sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t tx
   int maxWriteRetry = 10;
   int maxReadRetry = 20;
   for (int i = 0; i < maxWriteRetry; i++) {
-    if (ESP32Can.writeFrame(obdFrame, 1)) {
+    if (ESP32Can.writeFrame(obdFrame, 5)) {
       for (int j = 0; j < maxReadRetry; j++) {
-        if (ESP32Can.readFrame(rxFrame, 1)) {
+        if (ESP32Can.readFrame(rxFrame, 5)) {
           if (rxFrame.identifier == rxmoduleid) {
             LOG_PRINT.print("Data Polling=> ");
             LOG_PRINT.print(rxFrame.identifier, HEX);
@@ -387,6 +388,11 @@ bool sendAndReceiveObdFrame(uint32_t txmoduleid, uint16_t rxmoduleid, uint8_t tx
   return false;
 }
 
+// // Voltage for 12V battery from analog pin
+// void readAndSendBAT12V() {
+//   snprintf(strData, MAXSTRDATALENGTH + 1, "%i|%.1f", idBAT12V, map(analogRead(MEASURE12V_PIN), 0, 4095, 0, 1990) / 100.0f);
+//   g_SerialBT.write((byte *)strData, strlen(strData) + 1);
+// }
 
 bool sendDefaultObdFrame(uint8_t obdId) {
   uint8_t data[] = { 0x01, obdId };

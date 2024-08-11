@@ -37,6 +37,10 @@ extern "C" {
 
 BlynkTimer edgentTimer;
 
+BlynkTimer timer;
+BlynkTimer timer2;
+
+#include "Secrets.h"
 #include "BlynkState.h"
 #include "ConfigStore.h"
 #include "ResetButton.h"
@@ -80,6 +84,9 @@ void printDeviceBanner()
 }
 
 void runBlynkWithChecks() {
+  timer.run();
+  timer2.run();
+  Obd2Run();
   Blynk.run();
   if (BlynkState::get() == MODE_RUNNING) {
     if (!Blynk.connected()) {

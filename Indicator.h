@@ -244,6 +244,27 @@ Indicator indicator;
     }
   }
 
+  // void* indicator_thread(void*) {
+  //   long previousTime = 0;
+  //   long currentTime = 0;
+  //   int previousMode = BlynkState::get();
+  //   int currentMode = BlynkState::get();
+    
+  //   uint32_t returnTime = indicator.run();
+  //   while (true) {
+  //     currentTime = millis();
+  //     currentMode = BlynkState::get();
+
+  //     if(currentTime - previousTime > returnTime || currentMode != previousMode){
+  //       returnTime = indicator.run();
+  //       returnTime = BlynkMathClamp(returnTime, 1, 10000);
+  //       previousTime = currentTime;
+  //       previousMode = currentMode;
+  //     }
+  //   }
+  //   vTaskDelay(1);
+  // }
+
   void indicator_init() {
     indicator.init();
     pthread_create(&blinker, NULL, indicator_thread, NULL);

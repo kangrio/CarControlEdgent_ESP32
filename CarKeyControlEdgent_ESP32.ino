@@ -1,5 +1,8 @@
 // ESP32
 
+/* Blynk 1.3.2 */
+/* ArduinoIDE 2.3.2 */
+
 /* Uncomment below for use in production */
 // #define DEBUG_MODE
 
@@ -46,13 +49,9 @@
 #include <ArduinoOTA.h>
 #include <ezTime.h>
 #include "BlynkEdgent.h"
-#include "Secrets.h"
 
 bool isSetupComplete = false;
 
-
-BlynkTimer timer;
-BlynkTimer timer2;
 Timezone local;
 
 int sleepTimeForCheckingReboot = 5 * 60 * 1000;
@@ -73,7 +72,7 @@ long startPressedTime = 0;
 bool isLockButtonPressed = false;
 bool isUnLockButtonPressed = false;
 
-
+/*
 void setupArduinoOTA() {
   ArduinoOTA.setPasswordHash(passWordHashed);
   ArduinoOTA.onStart([]() {
@@ -118,6 +117,7 @@ void setupArduinoOTA() {
   });
   ArduinoOTA.begin();
 }
+*/
 
 void RESET_ALL_KEY() {
   digitalWrite(CLOSE_DOOR_PIN, HIGH);
@@ -173,12 +173,17 @@ void releaseTrunkButton() {
 
 void TOGGLE_TRUNK() {
   LOG_PRINT.println("Toggle Trunk");
-
-
-  timer.setTimeout(50L, pressTrunkButton);
-  timer.setTimeout(100L, releaseTrunkButton);
-  timer.setTimeout(150L, pressTrunkButton);
-  timer.setTimeout(200L, releaseTrunkButton);
+  
+  pressTrunkButton();
+  timer.setTimeout(100L, []() {
+    releaseTrunkButton();
+    timer.setTimeout(100L, []() {
+      pressTrunkButton();
+      timer.setTimeout(100L, []() {
+        releaseTrunkButton();
+      });
+    });
+  });
 }
 
 void printText(String str) {
@@ -207,7 +212,7 @@ BLYNK_WRITE(V0) {
     POWER_ON_REMOTE();
     timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
   } else {
-    // sendObd0100();
+    sendObd0100();
     sendObdFrame(0x05);
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
@@ -225,7 +230,8 @@ BLYNK_WRITE(V2) {
   LOG_PRINT.println("Lock BUtton: " + String(pinValue));
 
   if (pinValue > 0) {
-    sendObd0100();
+    // sendObd0100();
+    // sendObdFrame(0x05);
     startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
     isLockButtonPressed = true;
@@ -255,7 +261,8 @@ BLYNK_WRITE(V3) {
   LOG_PRINT.println("Unlock BUtton: " + String(pinValue));
 
   if (pinValue > 0) {
-    sendObd0100();
+    // sendObd0100();
+    // sendObdFrame(0x05);
     startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
     isUnLockButtonPressed = true;
@@ -355,15 +362,21 @@ BLYNK_CONNECTED() {
 
   timer2.setTimeout(200L, notifyDeviceOnline);
 
-  timer2.setTimeout(1000L, []() {
-    sendObd0100();
-    sendObdFrame(0x05);
-    updateCarStatus();
-  });
-
   if (!isSetupComplete) {
     setupArduinoOTA();
-    timer2.setInterval(1000L, checkCarStatus);
+
+    timer2.setTimeout(1000L, []() {
+      sendObd0100();
+      sendObdFrame(0x05);
+
+      isCarVccTurnedOn = myCarState.carVccTurnedOnState;
+      isCarDoorLocked = myCarState.carDoorLockedState;
+      isCarTrunkClosed = myCarState.carTrunkClosedState;
+      carBatterySoc = myCarState.carBatterySoc;
+
+      updateCarStatus();
+      timer2.setInterval(1000L, checkCarStatus);
+    });
     isSetupComplete = true;
     // startRemoteSerialMonitor();
   }
@@ -526,11 +539,7 @@ void serialReading() {
 }
 
 void loop() {
-  ArduinoOTA.handle();
   BlynkEdgent.run();
-  timer.run();
-  timer2.run();
-  Obd2Run();
-
+  ArduinoOTA.handle();
   // serialReading();
 }
