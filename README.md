@@ -3,6 +3,13 @@
 ## Overview
 CarKeyControlEdgent_ESP32 is a project designed to enable users to control their car without a traditional key using an ESP32 and Blynk IoT platform. Developed specifically with the BYD Atto 3, this system provides functionalities for locking and unlocking the car, starting and stopping the engine, toggling the trunk, and viewing the car's status including engine state, door lock status, and state of charge (SoC) remaining.
 
+## Blynk App
+<br/>
+
+Dashboard             |  Notification
+:-------------------------:|:-------------------------:
+<img src="assets/Blynk%20App%20Dashboard.png" />  |  <img src="assets/Blynk%20App%20Notifications.png" />
+
 ## To-Do
 - [ ] **Refactoring Code**
 - [ ] **Switch to using a local Blynk server because there are no limitations.**
@@ -52,9 +59,3 @@ CarKeyControlEdgent_ESP32 is a project designed to enable users to control their
 <img src="Diagram/Circuit%20Diagram_schem.png"/>
 <!-- ![Circuit Diagram](Diagram/Circuit%20Diagram_schem.png) -->
 
-## Blynk App
-<br/>
-
-Dashboard             |  Notification
-:-------------------------:|:-------------------------:
-<img src="assets/Blynk%20App%20Dashboard.png" />  |  <img src="assets/Blynk%20App%20Notifications.png" />
