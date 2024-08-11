@@ -5,7 +5,7 @@ CarKeyControlEdgent_ESP32 is a project designed to enable users to control their
 
 ## To-Do
 - [ ] **Refactoring Code**
-- [ ] **Moving to Local Blynk Server**
+- [ ] **Switch to using a local Blynk server because there are no limitations.**
 
 ## Features
 - [x] **Lock/Unlock:** Securely lock and unlock your car remotely.
