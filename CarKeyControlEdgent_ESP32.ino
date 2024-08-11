@@ -55,6 +55,7 @@ bool isSetupComplete = false;
 Timezone local;
 
 int sleepTimeForCheckingReboot = 5 * 60 * 1000;
+uint32_t offlineTimestamp = 0;
 
 /* Car Status infomation */
 bool isCarVccTurnedOn = false;
@@ -173,7 +174,7 @@ void releaseTrunkButton() {
 
 void TOGGLE_TRUNK() {
   LOG_PRINT.println("Toggle Trunk");
-  
+
   pressTrunkButton();
   timer.setTimeout(100L, []() {
     releaseTrunkButton();
@@ -355,27 +356,37 @@ void notifyCarDoorUnLocked() {
 //   Blynk.logEvent("atto3_trunk_openned");
 // }
 
+BLYNK_DISCONNECTED() {
+  offlineTimestamp = millis();
+}
+
 BLYNK_CONNECTED() {
   Blynk.sendInternal("utc", "time");     // Unix timestamp (with msecs)
   Blynk.sendInternal("utc", "tz_rule");  // POSIX TZ rule
   Blynk.syncAll();
 
-  timer2.setTimeout(200L, notifyDeviceOnline);
+  if (millis() - offlineTimestamp > 60000) {
+    timer2.setTimeout(200L, notifyDeviceOnline);
+    offlineTimestamp = millis();
+  }
 
   if (!isSetupComplete) {
     setupArduinoOTA();
+    timer2.setTimeout(200L, notifyDeviceOnline);
 
     timer2.setTimeout(1000L, []() {
       sendObd0100();
       sendObdFrame(0x05);
 
-      isCarVccTurnedOn = myCarState.carVccTurnedOnState;
-      isCarDoorLocked = myCarState.carDoorLockedState;
-      isCarTrunkClosed = myCarState.carTrunkClosedState;
-      carBatterySoc = myCarState.carBatterySoc;
+      timer2.setTimeout(2000L, []() {
+        isCarVccTurnedOn = myCarState.carVccTurnedOnState;
+        isCarDoorLocked = myCarState.carDoorLockedState;
+        isCarTrunkClosed = myCarState.carTrunkClosedState;
+        carBatterySoc = myCarState.carBatterySoc;
 
-      updateCarStatus();
-      timer2.setInterval(1000L, checkCarStatus);
+        updateCarStatus();
+        timer2.setInterval(1000L, checkCarStatus);
+      });
     });
     isSetupComplete = true;
     // startRemoteSerialMonitor();
@@ -410,7 +421,7 @@ void restartEverydayAt3AM() {
   LOG_PRINT.print(hour);
   LOG_PRINT.print(":");
   LOG_PRINT.println(minute);
-  if (hour == 3 && (minute >= 0 && minute <= 8)) {
+  if (hour == 3 && (minute >= 0 && minute <= 5)) {
     LOG_PRINT.println("Rebooting...");
     timer2.setTimeout(2000L, resetMCU);
   }
