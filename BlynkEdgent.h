@@ -49,6 +49,7 @@ BlynkTimer timer2;
 #include "OTA.h"
 #include "Console.h"
 #include "ObdReadingHelper.h"
+#include "SinricProApi.h"
 
 
 inline

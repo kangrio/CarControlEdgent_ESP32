@@ -140,6 +140,38 @@ void TOGGLE_TRUNK() {
   });
 }
 
+
+void TOGGLE_TRUNK_FROM_SINRIC() {
+  LOG_PRINT.println("Toggle Trunk");
+
+  BlynkState::set(MODE_KEYPRESS);
+  onBoardLedOn();
+  POWER_ON_REMOTE();
+
+  timer.setTimeout(sleepTimeForTurnOnKey, []() {
+    pressTrunkButton();
+    timer.setTimeout(100L, []() {
+      releaseTrunkButton();
+      timer.setTimeout(100L, []() {
+        pressTrunkButton();
+        timer.setTimeout(100L, []() {
+          releaseTrunkButton();
+          timer.setTimeout(100L, []() {
+            releaseTrunkButton();
+            timer.setTimeout(100, []() {
+              BlynkState::set(MODE_RUNNING);
+              onBoardLedOff();
+              RESET_ALL_KEY();
+              POWER_OFF_REMOTE();
+              timer.disableAll();
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
 void printText(String str) {
   LOG_PRINT.println(str);
 }
@@ -258,6 +290,12 @@ BLYNK_WRITE(V4) {
   }
 }
 
+void sinricProCallback(bool state) {
+  if ((isCarTrunkClosed == true && state == false) || (isCarTrunkClosed == false && state == true)) {
+    TOGGLE_TRUNK_FROM_SINRIC();
+  }
+}
+
 void resetMCU() {
 #if defined(ARDUINO_ARCH_MEGAAVR)
   wdt_enable(WDT_PERIOD_8CLK_gc);
@@ -318,14 +356,11 @@ BLYNK_CONNECTED() {
   Blynk.sendInternal("utc", "tz_rule");  // POSIX TZ rule
   Blynk.syncAll();
 
-  if (millis() - offlineTimestamp > 60000) {
-    timer2.setTimeout(200L, notifyDeviceOnline);
-    offlineTimestamp = millis();
-  }
 
   if (!isSetupComplete) {
+    registerCallbackSinricPro(sinricProCallback);
+    setupSinricPro();
     setupArduinoOTA();
-    timer2.setTimeout(200L, notifyDeviceOnline);
 
     timer2.setTimeout(1000L, []() {
       sendObd0100();
@@ -505,5 +540,6 @@ void serialReading() {
 void loop() {
   BlynkEdgent.run();
   ArduinoOTA.handle();
+  SinricPro.handle();
   // serialReading();
 }
