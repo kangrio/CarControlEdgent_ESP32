@@ -52,8 +52,8 @@
   #define BOARD_BUTTON_PIN            9
   #define BOARD_BUTTON_ACTIVE_LOW     true
 
-  #define BOARD_LED_PIN_WS2812        8
-  #define BOARD_LED_INVERSE           false
+  #define BOARD_LED_PIN               8
+  #define BOARD_LED_INVERSE           true
   #define BOARD_LED_BRIGHTNESS        32
 
 #elif defined(USE_ESP32S2_DEV_KIT)
