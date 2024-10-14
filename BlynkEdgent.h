@@ -107,6 +107,7 @@ public:
   {
     WiFi.persistent(false);
     WiFi.enableSTA(true); // Needed to get MAC
+    WiFi.setTxPower(WIFI_POWER_15dBm);
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0))
     WiFi.setMinSecurity(WIFI_AUTH_WEP);
 #endif
