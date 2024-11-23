@@ -14,6 +14,8 @@
 
 AsyncWebServer remoteSerialServer(8080);
 
+uint16_t pidMonitor = 0xF;
+
 // Handle any incoming messages
 void messageReceived(const uint8_t *data, size_t len) {
   char str[len];
@@ -25,6 +27,9 @@ void messageReceived(const uint8_t *data, size_t len) {
 
   Serial.print("Received: ");
   Serial.println(str);
+  uint16_t pid = strtoul(str, NULL, 16);
+  pidMonitor = pid;
+  LOG_PRINT.println(pid, HEX);
 
 
   // ESP.restart();

@@ -7,7 +7,17 @@
 // #define DEBUG_MODE
 
 /* Uncomment for use Serial */
-// #define USE_REMOTE_SERIAL
+#define USE_REMOTE_SERIAL
+
+#define DEBUG_OBD
+
+// Uncomment your board, or configure a custom board in Settings.h
+#define USE_ESP32_DEV_MODULE
+//#define USE_ESP32C3_DEV_MODULE
+//#define USE_ESP32S2_DEV_KIT
+//#define USE_WROVER_BOARD
+//#define USE_TTGO_T7
+//#define USE_TTGO_T_OI
 
 #define BLYNK_TEMPLATE_ID "TMPL6BR474jmt"
 #define BLYNK_TEMPLATE_NAME "Engine"
@@ -34,7 +44,7 @@
 
 // #define LED_BUILTIN 2
 
-#define VCC_STATE_PIN 36
+#if defined(USE_ESP32_DEV_MODULE)
 
 #define CLOSE_DOOR_PIN 32
 #define OPEN_DOOR_PIN 33
@@ -43,12 +53,39 @@
 #define POWER_PIN 27
 #define GND_PIN 26
 
-// Uncomment your board, or configure a custom board in Settings.h
-#define USE_ESP32_DEV_MODULE
+#define CAN_TX 22
+#define CAN_RX 21
+
+#elif defined(USE_ESP32C3_DEV_MODULE)
+
+#define CLOSE_DOOR_PIN 21
+#define OPEN_DOOR_PIN 20
+#define TOGGLE_TRUNK_PIN 10
+#define VCC_BUTTON 5
+#define POWER_PIN 6
+#define GND_PIN 7
+
+#define CAN_TX 0
+#define CAN_RX 1
+
+#endif
 
 #include <ArduinoOTA.h>
 #include <ezTime.h>
 #include "BlynkEdgent.h"
+#include <PubSubClient.h>
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+// MQTT Broker
+const char *mqtt_server = "localhost";
+const char *topic = "mycar/trunk";
+const char *mqtt_username = "mymqtt";
+const char *mqtt_password = "password";
+const int mqtt_port = 1883;
+
+String client_id = "esp32-client-";
 
 bool isSetupComplete = false;
 
@@ -61,7 +98,10 @@ uint32_t offlineTimestamp = 0;
 bool isCarVccTurnedOn = false;
 bool isCarDoorLocked = false;
 bool isCarTrunkClosed = false;
+bool isCarCharging = false;
 uint8_t carBatterySoc = 0;
+uint32_t carOdoMeter = 0;
+uint16_t carRangeLeft = 0;
 
 
 
@@ -142,7 +182,7 @@ void TOGGLE_TRUNK() {
 
 
 void TOGGLE_TRUNK_FROM_SINRIC() {
-  LOG_PRINT.println("Toggle Trunk");
+  LOG_PRINT.println("Toggle Trunk From Sinric");
 
   BlynkState::set(MODE_KEYPRESS);
   onBoardLedOn();
@@ -311,10 +351,9 @@ void resetMCU() {
   for (;;) {}
 }
 
-void notifyDeviceOnline() {
-  LOG_PRINT.println("Sending notifyDeviceOnline");
-
-  Blynk.logEvent("device_online", local.dateTime());
+void notifyDeviceStatus(String status) {
+  LOG_PRINT.println("Sending notifyDeviceStatus");
+  Blynk.logEvent("device_status", status);
 }
 
 void notifyCarAccStarted() {
@@ -358,8 +397,8 @@ BLYNK_CONNECTED() {
 
 
   if (!isSetupComplete) {
-    registerCallbackSinricPro(sinricProCallback);
-    setupSinricPro();
+    // registerCallbackSinricPro(sinricProCallback);
+    // setupSinricPro();
     setupArduinoOTA();
 
     timer2.setTimeout(1000L, []() {
@@ -374,6 +413,10 @@ BLYNK_CONNECTED() {
 
         updateCarStatus();
         timer2.setInterval(1000L, checkCarStatus);
+
+        // mqttClient.setServer(mqtt_server, mqtt_port);
+        // client_id += String(WiFi.macAddress());
+        // mqttClient.connect(client_id.c_str(), mqtt_username, mqtt_password);
       });
     });
     isSetupComplete = true;
@@ -427,6 +470,9 @@ void checkCarStatus() {
   checkCarDoorLockState();
   checkCarTrunkClosedState();
   checkCarBatterySoc();
+  checkCarBatteryStatus();
+  checkCarOdoMeterValue();
+  checkCarRangeLeftValue();
 }
 
 void checkCarBatterySoc() {
@@ -456,12 +502,16 @@ void checkCarTrunkClosedState() {
     isCarTrunkClosed = myCarState.carTrunkClosedState;
     if (isCarTrunkClosed) {
       // notifyCarTrunkClosed();
+      mqttClient.publish(topic, "close");
       updateCarStatus();
-      LOG_PRINT.println("Car Trunk is Openned");
+      myTrunk.sendRangeValueEvent(0, "Normal");
+      LOG_PRINT.println("Car Trunk is Closed");
     } else {
       // notifyCarTrunkOpenned();
+      mqttClient.publish(topic, "open");
       updateCarStatus();
-      LOG_PRINT.println("Car Trunk is Closed");
+      myTrunk.sendRangeValueEvent(100, "Normal");
+      LOG_PRINT.println("Car Trunk is Openned");
     }
   }
 }
@@ -483,18 +533,48 @@ void checkCarVccTurnedOnState() {
   }
 }
 
-void updateCarStatus() {
-  // if (isCarVccTurnedOn == myCarState.carVccTurnedOnState && isCarDoorLocked == myCarState.carDoorLockedState && carBatterySoc == myCarState.carBatterySoc) return;
-
-  String textVccState = (isCarVccTurnedOn) ? "✅" : "🚫";
-  String textDoorState = (isCarDoorLocked) ? "✅" : "🚫";
-  String textTrunkState = (isCarTrunkClosed) ? "✅" : "🚫";
-  String textState = String("Started: ") + textVccState + String(", Locked: ") + textDoorState + ", Trunk: " + textTrunkState + ", Soc: " + String(carBatterySoc) + "%";
-  Blynk.virtualWrite(V1, textState);
+void checkCarBatteryStatus() {
+  if (isCarCharging != myCarState.carChargingState) {
+    isCarCharging = myCarState.carChargingState;
+    if (isCarCharging) {
+      updateCarStatus();
+      notifyDeviceStatus("Charging Started");
+      LOG_PRINT.println("Charging Started");
+    } else {
+      updateCarStatus();
+      notifyDeviceStatus("Charging Stoped");
+      LOG_PRINT.println("Charging Stoped");
+    }
+  }
 }
 
-void readVoltPin() {
-  LOG_PRINT.println(analogRead(VCC_STATE_PIN));
+void checkCarOdoMeterValue() {
+  if (carOdoMeter != myCarState.carOdoMeter) {
+    carOdoMeter = myCarState.carOdoMeter;
+    updateCarStatus();
+  }
+}
+
+void checkCarRangeLeftValue() {
+  if (carRangeLeft != myCarState.carRangeLeft) {
+    carRangeLeft = myCarState.carRangeLeft;
+    updateCarStatus();
+  }
+}
+
+void updateCarStatus() {
+  if (myCarState.carChargingState) return;
+  // if (isCarVccTurnedOn == myCarState.carVccTurnedOnState && isCarDoorLocked == myCarState.carDoorLockedState && carBatterySoc == myCarState.carBatterySoc) return;
+
+  String textVccState = (!isCarVccTurnedOn) ? "✅" : "🚫";
+  String textDoorState = (isCarDoorLocked) ? "✅" : "🚫";
+  String textTrunkState = (isCarTrunkClosed) ? "✅" : "🚫";
+  String textState = String("Stopped: ") + textVccState + String(", Locked: ") + textDoorState + ", Trunk: " + textTrunkState + ", Soc: " + String(carBatterySoc) + "%";
+
+  String textCarDetail = "ODO: " + String(carOdoMeter) + " Km" + ", Range: " + String(carRangeLeft) + " Km";
+
+  Blynk.setProperty(V1, "label", textCarDetail);
+  Blynk.virtualWrite(V1, textState);
 }
 
 void sendObd0100() {
@@ -523,6 +603,9 @@ void setup() {
 
   TwaiBegin();
 
+  mqttClient.setServer(mqtt_server, mqtt_port);
+  client_id += String(WiFi.macAddress());
+
   BlynkEdgent.begin();
   timer2.setInterval(sleepTimeForCheckingReboot, restartEverydayAt3AM);
 }
@@ -537,9 +620,24 @@ void serialReading() {
   }
 }
 
+void mqttHandle() {
+  // Loop until we're reconnected
+  // Attempt to connect
+  if(!mqttClient.connected() && WiFi.isConnected()){
+    if (mqttClient.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+      Serial.println("connected");
+      mqttClient.publish(topic, "Connected!");
+    }
+  }else{
+    mqttClient.loop();
+  }
+}
+
 void loop() {
   BlynkEdgent.run();
   ArduinoOTA.handle();
-  SinricPro.handle();
+  mqttHandle();
+  // SinricPro.handle();
+  // LOG_PRINT.println(millis());
   // serialReading();
 }

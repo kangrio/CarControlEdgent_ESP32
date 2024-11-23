@@ -233,6 +233,7 @@ void setCarBatterySoc(CanFrame frame) {
   myCarState.carBatterySoc = frame.data[4];
 }
 
+  if (frame.data[0] == 0x03 || frame.data[0] == 0x43) {
 void printFrameCompare(CanFrame *message, int frameLine) {
   LOG_PRINT.print("0x");
   LOG_PRINT.print(message->identifier, HEX);
