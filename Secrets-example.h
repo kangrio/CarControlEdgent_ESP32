@@ -1,9 +1,9 @@
 #ifndef _SECRETS
 #define _SECRETS
 
-class SecretsClass{
-  public:
-  // password for arduinoOTA
+class SecretsClass {
+public:
+  // password for arduinoOTA hashed with md5
   const char *passWordHashed = "827ccb0eea8a706c4c34a16891f84e7b";
 
   // password for RemoteSerial

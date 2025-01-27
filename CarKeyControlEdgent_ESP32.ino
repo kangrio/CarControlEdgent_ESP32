@@ -3,6 +3,16 @@
 /* Blynk 1.3.2 */
 /* ArduinoIDE 2.3.2 */
 
+/* 
+## Library
+- [**Blynk** : 1.3.2](https://github.com/blynkkk/blynk-library)
+- [**RemoteSerial** : 0.0.1](https://github.com/kangrio/RemoteSerial)
+- [**ESP32-TWAI-CAN** : 1.0](https://github.com/handmade0octopus/ESP32-TWAI-CAN)
+- [**AntiDelay version** : 1.1.3](https://github.com/martinvichnal/AntiDelay)
+- [**pubsubclient** : 2.8](https://github.com/knolleary/pubsubclient)
+- [**sinricpro** : 3.3.1](https://github.com/sinricpro/esp8266-esp32-sdk)
+*/
+
 /* Uncomment below for use in production */
 // #define DEBUG_MODE
 
