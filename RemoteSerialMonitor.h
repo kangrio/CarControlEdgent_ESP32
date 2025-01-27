@@ -1,8 +1,6 @@
-// #include "HardwareSerial.h"
-// #include <ESPAsyncWebServer.h>
+#include "WString.h"
 #include <RemoteSerial.h>
-// #include "ObdReadingHelper.h"
-
+#include <ESP32-TWAI-CAN.hpp>
 
 #define ANSI_RED "\x1B[0;91m"
 #define ANSI_GREEN "\x1B[0;92m"
@@ -14,17 +12,44 @@
 
 AsyncWebServer remoteSerialServer(8080);
 
+uint16_t pidMonitor = 0xF;
+
 // Handle any incoming messages
 void messageReceived(const uint8_t *data, size_t len) {
-  char str[len];
+  char str[len + 1];  // +1 to accommodate the null-terminator
 
-  for (uint16_t i = 0; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     str[i] = data[i];
   }
-  str[len] = 0;
+  str[len] = '\0';  // Null-terminate the string
 
-  Serial.print("Received: ");
-  Serial.println(str);
+  if (strcmp(str, "reboot") == 0) {  // Compare strings
+    LOG_PRINT.println("Rebooting...");
+    ESP.restart();
+    for (;;)
+      ;
+  } else if (strcmp(str, "refresh") == 0) {
+    LOG_PRINT.println("Refreshing...");
+
+    CanFrame obdFrame = { 0 };
+
+    obdFrame.identifier = 0x7DF;  // OBD2 address;
+    obdFrame.extd = 0;
+    obdFrame.data_length_code = 8;
+    obdFrame.data[0] = 2;
+    obdFrame.data[1] = 0x01;
+    obdFrame.data[2] = 0x00;
+    obdFrame.data[3] = 0xAA;
+    obdFrame.data[4] = 0xAA;
+    obdFrame.data[5] = 0xAA;
+    obdFrame.data[6] = 0xAA;
+    obdFrame.data[7] = 0xAA;
+    ESP32Can.writeFrame(obdFrame, 5);
+  } else {
+    uint16_t pid = strtoul(str, NULL, 16);
+    pidMonitor = pid;
+    LOG_PRINT.println(pidMonitor, HEX);
+  }
 
 
   // ESP.restart();
@@ -43,6 +68,7 @@ void messageReceived(const uint8_t *data, size_t len) {
 
 void startRemoteSerialMonitor() {
   RemoteSerial.setIncomingMessageHandler(messageReceived);
+  RemoteSerial.setHttpAuth(Secrets.remoteSerialUsername, Secrets.remoteSerialPassword);
   RemoteSerial.begin(&remoteSerialServer);  // You can also add a custom url, e.g. /remotedebug
   remoteSerialServer.begin();
 }

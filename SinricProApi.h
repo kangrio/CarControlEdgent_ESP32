@@ -1,5 +1,6 @@
 #include "SinricPro.h"
 #include "SinricProBlinds.h"
+#include "Secrets.h"
 
 typedef void (*CallbackFunction)(bool state);
 CallbackFunction myCallback = NULL;
@@ -24,7 +25,7 @@ bool onTrunkState(const String &deviceId, int &position) {
   return true;  // request handled properly
 }
 
-SinricProBlinds &myTrunk = SinricPro[TRUNK_ID];
+SinricProBlinds &myTrunk = SinricPro[Secrets.TRUNK_ID];
 void setupSinricPro() {
   // &myTrunk = SinricPro[TRUNK_ID];
   myTrunk.onRangeValue(onTrunkState);
@@ -36,5 +37,5 @@ void setupSinricPro() {
   SinricPro.onDisconnected([]() {
     LOG_PRINT.printf("Disconnected from SinricPro\r\n");
   });
-  SinricPro.begin(APP_KEY, APP_SECRET);
+  SinricPro.begin(Secrets.APP_KEY, Secrets.APP_SECRET);
 }

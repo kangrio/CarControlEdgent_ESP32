@@ -1,9 +1,9 @@
 #include <ArduinoOTA.h>
-
+#include "Secrets.h"
 
 
 void setupArduinoOTA() {
-  ArduinoOTA.setPasswordHash(passWordHashed);
+  ArduinoOTA.setPasswordHash(Secrets.passWordHashed);
   ArduinoOTA.onStart([]() {
     BlynkState::set(MODE_OTA_UPGRADE);
     Blynk.disconnect();

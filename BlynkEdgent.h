@@ -48,8 +48,8 @@ BlynkTimer timer2;
 #include "Indicator.h"
 #include "OTA.h"
 #include "Console.h"
-#include "ObdReadingHelper.h"
 #include "SinricProApi.h"
+#include "ObdDevice.h"
 
 
 inline
@@ -87,7 +87,7 @@ void printDeviceBanner()
 void runBlynkWithChecks() {
   timer.run();
   timer2.run();
-  Obd2Run();
+  ObdDevice.run();
   Blynk.run();
   if (BlynkState::get() == MODE_RUNNING) {
     if (!Blynk.connected()) {
