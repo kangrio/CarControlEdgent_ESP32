@@ -619,6 +619,7 @@ void serialReading() {
 
 void loop() {
   BlynkEdgent.run();
+  ObdDevice.run();
   ArduinoOTA.handle();
   MqttClient.mqttHandle();
   SinricPro.handle();

@@ -347,6 +347,7 @@ public:
         }
       }
     }
+    return false;
   }
 
   bool sendDefaultObdFrame(uint8_t obdId) {

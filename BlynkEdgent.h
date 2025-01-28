@@ -87,7 +87,6 @@ void printDeviceBanner()
 void runBlynkWithChecks() {
   timer.run();
   timer2.run();
-  ObdDevice.run();
   Blynk.run();
   if (BlynkState::get() == MODE_RUNNING) {
     if (!Blynk.connected()) {
