@@ -9,6 +9,8 @@ CarKeyControlEdgent_ESP32 is a project designed to enable users to control their
 Dashboard             |  Notification
 :-------------------------:|:-------------------------:
 <img src="assets/Blynk%20App%20Dashboard.png" />  |  <img src="assets/Blynk%20App%20Notifications.png" />
+Charging             |  
+<img src="assets/Blynk%20App%20Charging.gif" />  |  
 
 ## To-Do
 - [ ] **Refactoring Code**
