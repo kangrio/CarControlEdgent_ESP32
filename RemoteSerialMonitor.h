@@ -14,6 +14,22 @@ AsyncWebServer remoteSerialServer(8080);
 
 uint16_t pidMonitor = 0xF;
 
+void messageReceived(const uint8_t *data, size_t len);
+
+bool isHexString(const char str[]) {
+  if (str[0] != '0' && (str[1] != 'x' || str[1] != 'X')) return false;  // not start with "0x" 0r "0X"
+  for (int i = 2; str[i] != '\0'; i++) {
+    char c = str[i];
+    if (!((c >= '0' && c <= '9') ||  // Check 0-9
+          (c >= 'a' && c <= 'f') ||  // Check a-f
+          (c >= 'A' && c <= 'F')))   // Check A-F
+    {
+      return false;  // Invalid character found
+    }
+  }
+  return true;  // All characters are valid hex
+}
+
 // Handle any incoming messages
 void messageReceived(const uint8_t *data, size_t len) {
   char str[len + 1];  // +1 to accommodate the null-terminator
@@ -22,6 +38,7 @@ void messageReceived(const uint8_t *data, size_t len) {
     str[i] = data[i];
   }
   str[len] = '\0';  // Null-terminate the string
+  LOG_PRINT.println(str);
 
   if (strcmp(str, "reboot") == 0) {  // Compare strings
     LOG_PRINT.println("Rebooting...");
@@ -45,12 +62,11 @@ void messageReceived(const uint8_t *data, size_t len) {
     obdFrame.data[6] = 0xAA;
     obdFrame.data[7] = 0xAA;
     ESP32Can.writeFrame(obdFrame, 5);
-  } else {
+  } else if (isHexString(str)) {
     uint16_t pid = strtoul(str, NULL, 16);
     pidMonitor = pid;
-    LOG_PRINT.println(pidMonitor, HEX);
   }
-
+  LOG_PRINT.flush();
 
   // ESP.restart();
 
