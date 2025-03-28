@@ -55,21 +55,38 @@ public:
       printFrameDelay(500) {
   }
 
-  void printFrame(CanFrame *message) {
+  void printFrame(CanFrame *message, bool useDelay = true) {
     String data = String(millis()) + ": ";
     String lenghtTAG = (message->extd) ? " X " : " S ";
-    data = data + "0x" + String(message->identifier, HEX) + lenghtTAG + String(message->data_length_code) + " ";
+    data = data + "0x" + String(message->identifier, HEX) + lenghtTAG + String(message->data_length_code) + " | ";
     for (int i = 0; i < message->data_length_code; i++) {
-      String bitData = String(message->data[i], HEX);
+      String bitData = String(message->data[i], HEX) + ":" + String(message->data[i], DEC);
       bitData.toUpperCase();
-      data = data + bitData + " ";
+      int spaceSize = 6 - bitData.length();
+      data = data + bitData + generateSpace(spaceSize);
     }
 
     Obd_Fram = Obd_Fram + data + "\n";
     if (printFrameDelay) {
       LOG_PRINT.print(Obd_Fram);
       Obd_Fram = "";
+    } else if (!useDelay) {
+      LOG_PRINT.print(Obd_Fram);
+      Obd_Fram = "";
     }
+  }
+
+  String generateZeroValue() {
+    return "";
+  }
+
+  String generateSpace(int size) {
+    String space = " ";
+    for (int i = 0; i < size; i++) {
+      space += " ";
+    }
+    space += "| ";
+    return space;
   }
 
   String getFadeCustomGreenColor(float factor) {
@@ -339,14 +356,10 @@ public:
         for (int j = 0; j < maxReadRetry; j++) {
           if (ESP32Can.readFrame(rxFrame, 5)) {
             if (rxFrame.identifier == rxmoduleid) {
-              LOG_PRINT.print("Data Polling=> ");
-              LOG_PRINT.print(rxFrame.identifier, HEX);
-              LOG_PRINT.print(": ");
-              String data = "";
-              for (int i = 0; i < 8; i++) {
-                data = data + String(rxFrame.data[i], HEX) + ":";
-              }
-              LOG_PRINT.println(data);
+              LOG_PRINT.println("Polling=> ");
+              printFrame(&obdFrame, false);
+              LOG_PRINT.println("Receive=> ");
+              printFrame(&rxFrame, false);
               setCarBatterySoc(rxFrame);
               return true;
             }
