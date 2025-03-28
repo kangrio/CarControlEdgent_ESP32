@@ -235,6 +235,9 @@ public:
     switch (frame.data[0]) {
       case 0x4:
         {
+          if (frame.data[1] == 0xff) {
+            break;
+          }
           uint16_t lsb = frame.data[1];
           uint16_t msb = frame.data[2] & 0x0f;
           myCarState.carRangeLeft = lsb + (msb * 256);
