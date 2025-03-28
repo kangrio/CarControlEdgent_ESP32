@@ -127,10 +127,9 @@ public:
     char charge_remaining[6];
     sprintf(charge_remaining, "%02d:%02d", charge_remaining_hours, charge_remaining_mins);
 
-    int16_t lsb = d[2];
-    int16_t msb = (d[3] & 0x1f) * 256;
-
-    bool ac_charging = (d[3] & 0x20) > 0;
+    int16_t rawValue = ((d[3] & 0xF) << 8) | d[2];
+    float changingPower = (rawValue - 500) / 10.0;
+    bool ac_charging = changingPower < 8;
 
     myCarState.carBatterySoc = charge_soc;
 
@@ -139,7 +138,7 @@ public:
     String textTrunkState = (myCarState.carTrunkClosedState) ? "✅" : "🚫";
 
     String chargingSoc = String(charge_soc);
-    String chargingPower = String((msb + lsb - 500) / 10.0);
+    String chargingPower = String(changingPower);
     String chargingTime = String(charge_remaining);
     String chargingMode = ac_charging ? "AC" : "DC";
 
