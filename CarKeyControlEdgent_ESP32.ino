@@ -399,8 +399,8 @@ BLYNK_CONNECTED() {
 
 
   if (!isSetupComplete) {
-    registerCallbackSinricPro(sinricProCallback);
-    setupSinricPro();
+    // registerCallbackSinricPro(sinricProCallback);
+    // setupSinricPro();
     setupArduinoOTA();
 
     timer2.setTimeout(1000L, []() {
@@ -622,6 +622,6 @@ void loop() {
   ObdDevice.run();
   ArduinoOTA.handle();
   MqttClient.mqttHandle();
-  SinricPro.handle();
+  // SinricPro.handle();
   // serialReading();
 }
