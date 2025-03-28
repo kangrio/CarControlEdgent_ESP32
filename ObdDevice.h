@@ -22,6 +22,11 @@ private:
 
   CanFrame rxFrame;
 
+#define _DOOR_ID 0x407
+#define _ENGINE_ID 0x055
+#define _CHARGING_ID 0x323
+#define _ODO_METER_ID_ID 0x3D9
+
   uint32_t doorId = 0x407;
   uint32_t engineId = 0x055;
   uint32_t chargingId = 0x323;
@@ -286,16 +291,16 @@ public:
       }
 #endif
       switch (rxFrame.identifier) {
-        case 0x407:
+        case _DOOR_ID:
           setCarDoorState(rxFrame);
           break;
-        case 0x055:
+        case _ENGINE_ID:
           setCarVccTurnedOnState(rxFrame.data[4]);
           break;
-        case 0x323:
+        case _CHARGING_ID:
           setCarChargingState(rxFrame);
           break;
-        case 0x3D9:
+        case _ODO_METER_ID_ID:
           setCarOdoMeterValue(rxFrame);
           break;
         default:
