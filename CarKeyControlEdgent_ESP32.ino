@@ -420,6 +420,8 @@ void notifyCarTrunkOpenned() {
 }
 
 BLYNK_DISCONNECTED() {
+  POWER_OFF_REMOTE();
+  RESET_ALL_KEY();
   offlineTimestamp = millis();
 }
 
