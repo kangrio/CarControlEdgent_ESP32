@@ -62,15 +62,6 @@ Charging             |
 2. **Control the car:**
     - Use the Blynk app to lock/unlock the car, start/stop the engine, and toggle the trunk.
     - View the car's status in real-time through the Blynk app.
-
-## Blynk Setup
-- Virtual Pin
-  - V1:String = Car information
-  - V4:Integer = Push buttons
-    - Start/Stop button value { press: 1, release: 0 }
-    - Lock button value { press: 3, release: 2 }
-    - Unlock button value { press: 5, release: 4 }
-    - Trunk button value { press: 7, release: 6 }
     
 
 ## Circuit Diagram
