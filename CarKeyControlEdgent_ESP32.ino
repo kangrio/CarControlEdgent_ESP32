@@ -229,11 +229,8 @@ void onBoardLedOff() {
   ledcWrite(BOARD_LEDC_CHANNEL_1, TO_PWM(0));
 }
 
-// ACC Button
-BLYNK_WRITE(V0) {
-  int pinValue = param.asInt();
-  LOG_PRINT.println(pinValue);
-
+void vccButtonAction(int state) {
+  int pinValue = state % 2;
 
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
@@ -254,10 +251,8 @@ BLYNK_WRITE(V0) {
   }
 }
 
-// Lock BUtton
-BLYNK_WRITE(V2) {
-  int pinValue = param.asInt();
-  LOG_PRINT.println("Lock BUtton: " + String(pinValue));
+void lockButtonAction(int state) {
+  int pinValue = state % 2;
 
   if (pinValue > 0) {
     startPressedTime = millis();
@@ -283,10 +278,8 @@ BLYNK_WRITE(V2) {
   }
 }
 
-// Unlock BUtton
-BLYNK_WRITE(V3) {
-  int pinValue = param.asInt();
-  LOG_PRINT.println("Unlock BUtton: " + String(pinValue));
+void unlockButtonAction(int state) {
+  int pinValue = state % 2;
 
   if (pinValue > 0) {
     startPressedTime = millis();
@@ -312,10 +305,8 @@ BLYNK_WRITE(V3) {
   }
 }
 
-// Trunk Button
-BLYNK_WRITE(V4) {
-  int pinValue = param.asInt();
-  LOG_PRINT.println("Trunk Button: " + String(pinValue));
+void trunkButtonAction(int state) {
+  int pinValue = state % 2;
 
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
@@ -329,6 +320,46 @@ BLYNK_WRITE(V4) {
     timer.disableAll();
     RESET_ALL_KEY();
     POWER_OFF_REMOTE();
+  }
+}
+
+void powerButtonAction(int state) {
+  int pinValue = state % 2;
+
+  if (pinValue > 0) {
+    POWER_ON_REMOTE();
+  } else {
+    onBoardLedOff();
+  }
+}
+
+BLYNK_WRITE(V4) {
+  int pinValue = param.asInt();
+  LOG_PRINT.println("V4 Value: " + String(pinValue));
+
+  switch(pinValue) {
+    case 0:
+    case 1:
+        vccButtonAction(pinValue);
+      break;
+    case 2:
+    case 3:
+        lockButtonAction(pinValue);
+      break;
+    case 4:
+    case 5:
+        unlockButtonAction(pinValue);
+      break;
+    case 6:
+    case 7:
+        trunkButtonAction(pinValue);
+      break;
+    case 8:
+    case 9:
+        powerButtonAction(pinValue);
+      break;
+    default:
+      break;
   }
 }
 
@@ -389,6 +420,8 @@ void notifyCarTrunkOpenned() {
 }
 
 BLYNK_DISCONNECTED() {
+  POWER_OFF_REMOTE();
+  RESET_ALL_KEY();
   offlineTimestamp = millis();
 }
 
