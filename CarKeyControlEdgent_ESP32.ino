@@ -92,7 +92,7 @@ bool isSetupComplete = false;
 
 Timezone local;
 
-int sleepTimeForCheckingReboot = 5 * 60 * 1000;
+uint32_t  sleepTimeForCheckingReboot = 5 * 60 * 1000;
 uint32_t offlineTimestamp = 0;
 
 /* Car Status infomation */
@@ -108,20 +108,18 @@ uint16_t carRangeLeft = 0;
 
 
 /* Key press Var */
-long sleepTimeForTurnOnKey = 300L;
+uint16_t sleepTimeForTurnOnKey = 300;
 
-long startPressedTime = 0;
-bool isLockButtonPressed = false;
-bool isUnLockButtonPressed = false;
+uint32_t startPressedTime = 0;
 
 bool isRemotePowerOn = false;
 
-int pressKeyFopButton = LOW;
-int releaseKeyFopButton = HIGH;
+uint8_t pressKeyFopButton = LOW;
+uint8_t releaseKeyFopButton = HIGH;
 
 
 /* TimerId */
-int vccButtonTimerId, lockButtonTimerId, unlockButtonTimerId, trunkButtonTimerId = BlynkTimer::MAX_TIMERS;
+int8_t vccButtonTimerId, lockButtonTimerId, unlockButtonTimerId, trunkButtonTimerId = BlynkTimer::MAX_TIMERS;
 
 void RESET_ALL_KEY() {
   digitalWrite(CLOSE_DOOR_PIN, HIGH);
@@ -182,44 +180,9 @@ void TOGGLE_TRUNK() {
 
   pressTrunkButton();
   timer.setTimer(100L, []() {
-    int current = digitalRead(TOGGLE_TRUNK_PIN);
+    uint8_t current = digitalRead(TOGGLE_TRUNK_PIN);
     current == pressKeyFopButton ? releaseTrunkButton() : pressTrunkButton();
   }, 3);
-}
-
-
-void TOGGLE_TRUNK_FROM_SINRIC() {
-  LOG_PRINT.println("Toggle Trunk From Sinric");
-
-  BlynkState::set(MODE_KEYPRESS);
-  onBoardLedOn();
-  POWER_ON_REMOTE();
-
-  timer.setTimeout(sleepTimeForTurnOnKey, []() {
-    pressTrunkButton();
-    timer.setTimeout(100L, []() {
-      releaseTrunkButton();
-      timer.setTimeout(100L, []() {
-        pressTrunkButton();
-        timer.setTimeout(100L, []() {
-          releaseTrunkButton();
-          timer.setTimeout(100L, []() {
-            releaseTrunkButton();
-            timer.setTimeout(100, []() {
-              BlynkState::set(MODE_RUNNING);
-              onBoardLedOff();
-              RESET_ALL_KEY();
-              POWER_OFF_REMOTE();
-            });
-          });
-        });
-      });
-    });
-  });
-}
-
-void printText(String str) {
-  LOG_PRINT.println(str);
 }
 
 void onBoardLedOn() {
@@ -230,21 +193,21 @@ void onBoardLedOff() {
   ledcWrite(BOARD_LEDC_CHANNEL_1, TO_PWM(0));
 }
 
-void deleteTimer(int *timerId) {
+void deleteTimer(int8_t *timerId) {
   timer.deleteTimer(*timerId);
   *timerId = BlynkTimer::MAX_TIMERS;
   LOG_PRINT.println(timer.getNumTimers());
 }
 
 void vccButtonAction(int state) {
-  int pinValue = state % 2;
+  uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
-    vccButtonTimerId = timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
+    vccButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
   } else {
     sendObd0100();
     ObdDevice.sendObdFrame(0x05);
@@ -258,12 +221,11 @@ void vccButtonAction(int state) {
 }
 
 void lockButtonAction(int state) {
-  int pinValue = state % 2;
+  uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
     startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
-    isLockButtonPressed = true;
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
@@ -280,17 +242,15 @@ void lockButtonAction(int state) {
       timer.setTimeout(sleepTimeForTurnOnKey + 300, POWER_OFF_REMOTE);
     }
     BlynkState::set(MODE_RUNNING);
-    isLockButtonPressed = false;
   }
 }
 
 void unlockButtonAction(int state) {
-  int pinValue = state % 2;
+  uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
     startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
-    isUnLockButtonPressed = true;
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
@@ -307,19 +267,18 @@ void unlockButtonAction(int state) {
       timer.setTimeout(sleepTimeForTurnOnKey + 300, POWER_OFF_REMOTE);
     }
     BlynkState::set(MODE_RUNNING);
-    isUnLockButtonPressed = false;
   }
 }
 
 void trunkButtonAction(int state) {
-  int pinValue = state % 2;
+  uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
-    trunkButtonTimerId = timer.setTimeout(sleepTimeForTurnOnKey, TOGGLE_TRUNK);
+    trunkButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, TOGGLE_TRUNK);
   } else {
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
@@ -330,7 +289,7 @@ void trunkButtonAction(int state) {
 }
 
 void powerButtonAction(int state) {
-  int pinValue = state % 2;
+  uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
     POWER_ON_REMOTE();
@@ -365,12 +324,6 @@ BLYNK_WRITE(V4) {
       break;
     default:
       break;
-  }
-}
-
-void sinricProCallback(bool state) {
-  if ((isCarTrunkClosed == true && state == false) || (isCarTrunkClosed == false && state == true)) {
-    TOGGLE_TRUNK_FROM_SINRIC();
   }
 }
 
@@ -437,8 +390,6 @@ BLYNK_CONNECTED() {
 
 
   if (!isSetupComplete) {
-    // registerCallbackSinricPro(sinricProCallback);
-    // setupSinricPro();
     setupArduinoOTA();
 
     timer.setTimeout(1000L, []() {
@@ -475,16 +426,10 @@ BLYNK_WRITE(InternalPinUTC) {
   }
 }
 
-void printClock() {
-  LOG_PRINT.println(local.minute());
-
-  LOG_PRINT.println("Time: " + local.dateTime());
-}
-
 void restartEverydayAt3AM() {
   LOG_PRINT.println("Checking Reboot Time");
-  int hour = local.hour();
-  int minute = local.minute();
+  uint8_t hour = local.hour();
+  uint8_t minute = local.minute();
   LOG_PRINT.print(hour);
   LOG_PRINT.print(":");
   LOG_PRINT.println(minute);
@@ -492,13 +437,6 @@ void restartEverydayAt3AM() {
     LOG_PRINT.println("Rebooting...");
     timer.setTimeout(2000L, resetMCU);
   }
-}
-
-void requestObdStaySendDoorLockData() {
-  // if (ObdDevice.myCarState.carDoorLockedState) {
-  // LOG_PRINT.println("requestObdStaySendDoorLockData()");
-  sendObd0100();
-  // }
 }
 
 void checkCarStatus() {
@@ -540,13 +478,11 @@ void checkCarTrunkClosedState() {
       notifyCarTrunkClosed();
       MqttClient.updateTrunkState("close");
       updateCarStatus();
-      myTrunk.sendRangeValueEvent(0, "Normal");
       LOG_PRINT.println("Car Trunk is Closed");
     } else {
       notifyCarTrunkOpenned();
       MqttClient.updateTrunkState("open");
       updateCarStatus();
-      myTrunk.sendRangeValueEvent(100, "Normal");
       LOG_PRINT.println("Car Trunk is Openned");
     }
   }
@@ -645,21 +581,9 @@ void setup() {
   timer.setInterval(sleepTimeForCheckingReboot, restartEverydayAt3AM);
 }
 
-void serialReading() {
-  if (Serial.available()) {
-    String str = Serial.readString();
-    Serial.println(str);
-    if (str.equalsIgnoreCase("reboot")) {
-      restartMCU();
-    }
-  }
-}
-
 void loop() {
   BlynkEdgent.run();
   ObdDevice.run();
   ArduinoOTA.handle();
   MqttClient.mqttHandle();
-  // SinricPro.handle();
-  // serialReading();
 }
