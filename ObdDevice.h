@@ -1,3 +1,4 @@
+#include <stdint.h>
 #ifndef _OBD_DEVICE
 #define _OBD_DEVICE
 
@@ -59,10 +60,10 @@ public:
     String data = String(millis()) + ": ";
     String lenghtTAG = (message->extd) ? " X " : " S ";
     data = data + "0x" + String(message->identifier, HEX) + lenghtTAG + String(message->data_length_code) + " | ";
-    for (int i = 0; i < message->data_length_code; i++) {
+    for (uint8_t i = 0; i < message->data_length_code; i++) {
       String bitData = String(message->data[i], HEX) + ":" + String(message->data[i], DEC);
       bitData.toUpperCase();
-      int spaceSize = 6 - bitData.length();
+      uint8_t spaceSize = 6 - bitData.length();
       data = data + bitData + generateSpace(spaceSize);
     }
 
@@ -80,9 +81,9 @@ public:
     return "";
   }
 
-  String generateSpace(int size) {
+  String generateSpace(uint8_t size) {
     String space = " ";
-    for (int i = 0; i < size; i++) {
+    for (uint8_t i = 0; i < size; i++) {
       space += " ";
     }
     space += "| ";
@@ -91,22 +92,22 @@ public:
 
   String getFadeCustomGreenColor(float factor) {
     // Dark green color (#0F624A)
-    int redMin = 15;
-    int greenMin = 98;
-    int blueMin = 74;
+    uint8_t redMin = 15;
+    uint8_t greenMin = 98;
+    uint8_t blueMin = 74;
 
     // Bright green color (#24C48E)
-    int redMax = 36;
-    int greenMax = 196;
-    int blueMax = 142;
+    uint8_t redMax = 36;
+    uint8_t greenMax = 196;
+    uint8_t blueMax = 142;
 
     // Calculate the interpolation factor (from 0 to 1 based on the sine wave)
     float interpolation = (sin(factor) + 1.0) / 2.0;  // Map sine wave (-1 to 1) to (0 to 1)
 
     // Calculate RGB values by interpolation
-    int red = redMin + (redMax - redMin) * interpolation;
-    int green = greenMin + (greenMax - greenMin) * interpolation;
-    int blue = blueMin + (blueMax - blueMin) * interpolation;
+    uint8_t red = redMin + (redMax - redMin) * interpolation;
+    uint8_t green = greenMin + (greenMax - greenMin) * interpolation;
+    uint8_t blue = blueMin + (blueMax - blueMin) * interpolation;
 
     // Convert RGB to a hex color string
     char hexColor[7];
@@ -125,7 +126,7 @@ public:
     }
     uint8_t d[8];
 
-    for (int i = 0; i < 8; i++) {
+    for (uint8_t i = 0; i < 8; i++) {
       d[i] = frame.data[i];
     }
 
@@ -277,7 +278,7 @@ public:
     }
   }
 
-  int begin() {
+  uint8_t begin() {
     ESP32Can.setPins(CAN_TX, CAN_RX);
     ESP32Can.setRxQueueSize(5);
     ESP32Can.setTxQueueSize(5);
@@ -344,7 +345,7 @@ public:
     obdFrame.data[6] = 0xAA;
     obdFrame.data[7] = 0xAA;
 
-    for (int i = 0; i < dataSize; i++) {
+    for (uint8_t i = 0; i < dataSize; i++) {
       obdFrame.data[i + 1] = txData[i];
     }
 
@@ -352,11 +353,11 @@ public:
     // return ESP32Can.writeFrame(obdFrame, 10);  // timeout defaults to 1 ms
 
 
-    int maxWriteRetry = 10;
-    int maxReadRetry = 20;
-    for (int i = 0; i < maxWriteRetry; i++) {
+    uint8_t maxWriteRetry = 10;
+    uint8_t maxReadRetry = 20;
+    for (uint8_t i = 0; i < maxWriteRetry; i++) {
       if (ESP32Can.writeFrame(obdFrame, 5)) {
-        for (int j = 0; j < maxReadRetry; j++) {
+        for (uint8_t j = 0; j < maxReadRetry; j++) {
           if (ESP32Can.readFrame(rxFrame, 5)) {
             if (rxFrame.identifier == rxmoduleid) {
               LOG_PRINT.println("Polling=> ");
