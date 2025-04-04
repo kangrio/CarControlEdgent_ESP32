@@ -116,6 +116,9 @@ bool isUnLockButtonPressed = false;
 
 bool isRemotePowerOn = false;
 
+int pressKeyFopButton = LOW;
+int releaseKeyFopButton = HIGH;
+
 
 /* TimerId */
 int vccButtonTimerId, lockButtonTimerId, unlockButtonTimerId, trunkButtonTimerId = BlynkTimer::MAX_TIMERS;
@@ -178,15 +181,10 @@ void TOGGLE_TRUNK() {
   LOG_PRINT.println("Toggle Trunk");
 
   pressTrunkButton();
-  timer.setTimeout(100L, []() {
-    releaseTrunkButton();
-    timer.setTimeout(100L, []() {
-      pressTrunkButton();
-      timer.setTimeout(100L, []() {
-        releaseTrunkButton();
-      });
-    });
-  });
+  timer.setTimer(100L, []() {
+    int current = digitalRead(TOGGLE_TRUNK_PIN);
+    current == pressKeyFopButton ? releaseTrunkButton() : pressTrunkButton();
+  }, 3);
 }
 
 
