@@ -116,6 +116,10 @@ bool isUnLockButtonPressed = false;
 
 bool isRemotePowerOn = false;
 
+
+/* TimerId */
+int vccButtonTimerId, lockButtonTimerId, unlockButtonTimerId, trunkButtonTimerId = BlynkTimer::MAX_TIMERS;
+
 void RESET_ALL_KEY() {
   digitalWrite(CLOSE_DOOR_PIN, HIGH);
   digitalWrite(OPEN_DOOR_PIN, HIGH);
@@ -208,7 +212,6 @@ void TOGGLE_TRUNK_FROM_SINRIC() {
               onBoardLedOff();
               RESET_ALL_KEY();
               POWER_OFF_REMOTE();
-              timer.disableAll();
             });
           });
         });
@@ -229,6 +232,12 @@ void onBoardLedOff() {
   ledcWrite(BOARD_LEDC_CHANNEL_1, TO_PWM(0));
 }
 
+void deleteTimer(int *timerId) {
+  timer.deleteTimer(*timerId);
+  *timerId = BlynkTimer::MAX_TIMERS;
+  LOG_PRINT.println(timer.getNumTimers());
+}
+
 void vccButtonAction(int state) {
   int pinValue = state % 2;
 
@@ -237,16 +246,15 @@ void vccButtonAction(int state) {
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
-    timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
+    vccButtonTimerId = timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
   } else {
     sendObd0100();
     ObdDevice.sendObdFrame(0x05);
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
-    timer.disableAll();
+    deleteTimer(&vccButtonTimerId);
     RESET_ALL_KEY();
     POWER_OFF_REMOTE();
-
     updateCarStatus();
   }
 }
@@ -313,11 +321,11 @@ void trunkButtonAction(int state) {
     onBoardLedOn();
     POWER_ON_REMOTE();
     RESET_ALL_KEY();
-    timer.setTimeout(sleepTimeForTurnOnKey, TOGGLE_TRUNK);
+    trunkButtonTimerId = timer.setTimeout(sleepTimeForTurnOnKey, TOGGLE_TRUNK);
   } else {
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
-    timer.disableAll();
+    deleteTimer(&trunkButtonTimerId);
     RESET_ALL_KEY();
     POWER_OFF_REMOTE();
   }
@@ -335,7 +343,6 @@ void powerButtonAction(int state) {
 
 BLYNK_WRITE(V4) {
   int pinValue = param.asInt();
-  LOG_PRINT.println("V4 Value: " + String(pinValue));
 
   switch(pinValue) {
     case 0:
@@ -436,18 +443,18 @@ BLYNK_CONNECTED() {
     // setupSinricPro();
     setupArduinoOTA();
 
-    timer2.setTimeout(1000L, []() {
+    timer.setTimeout(1000L, []() {
       sendObd0100();
       ObdDevice.sendObdFrame(0x05);
 
-      timer2.setTimeout(2000L, []() {
+      timer.setTimeout(2000L, []() {
         isCarVccTurnedOn = ObdDevice.myCarState.carVccTurnedOnState;
         isCarDoorLocked = ObdDevice.myCarState.carDoorLockedState;
         isCarTrunkClosed = ObdDevice.myCarState.carTrunkClosedState;
         carBatterySoc = ObdDevice.myCarState.carBatterySoc;
 
         updateCarStatus();
-        timer2.setInterval(1000L, checkCarStatus);
+        timer.setInterval(1000L, checkCarStatus);
       });
     });
     isSetupComplete = true;
@@ -485,7 +492,7 @@ void restartEverydayAt3AM() {
   LOG_PRINT.println(minute);
   if (hour == 3 && (minute >= 0 && minute <= 5)) {
     LOG_PRINT.println("Rebooting...");
-    timer2.setTimeout(2000L, resetMCU);
+    timer.setTimeout(2000L, resetMCU);
   }
 }
 
@@ -637,7 +644,7 @@ void setup() {
   MqttClient.begin(client_id);
 
   BlynkEdgent.begin();
-  timer2.setInterval(sleepTimeForCheckingReboot, restartEverydayAt3AM);
+  timer.setInterval(sleepTimeForCheckingReboot, restartEverydayAt3AM);
 }
 
 void serialReading() {

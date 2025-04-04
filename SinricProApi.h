@@ -17,7 +17,7 @@ bool onTrunkState(const String &deviceId, int &position) {
     if (position == 100) {
       state = false;
     }
-    timer2.setTimeout(50, [state]() {
+    timer.setTimeout(50, [state]() {
       myCallback(state);
     });
   }
