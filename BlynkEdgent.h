@@ -48,6 +48,7 @@ BlynkTimer timer;
 #include "OTA.h"
 #include "Console.h"
 #include "ObdDevice.h"
+#include "MqttClient.h"
 
 
 inline
@@ -85,6 +86,8 @@ void printDeviceBanner()
 void runBlynkWithChecks() {
   timer.run();
   Blynk.run();
+  ObdDevice.run();
+  MqttClient.mqttHandle();
   if (BlynkState::get() == MODE_RUNNING) {
     if (!Blynk.connected()) {
       if (WiFi.status() == WL_CONNECTED) {
@@ -155,6 +158,7 @@ public:
 
 void app_loop() {
     edgentTimer.run();
+    ArduinoOTA.handle();
     // edgentConsole.run();
 }
 

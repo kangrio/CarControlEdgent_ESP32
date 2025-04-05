@@ -587,7 +587,4 @@ void setup() {
 
 void loop() {
   BlynkEdgent.run();
-  ObdDevice.run();
-  ArduinoOTA.handle();
-  MqttClient.mqttHandle();
 }
