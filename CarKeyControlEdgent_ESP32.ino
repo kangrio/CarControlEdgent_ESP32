@@ -292,9 +292,13 @@ void powerButtonAction(int state) {
   uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
+    BlynkState::set(MODE_KEYPRESS);
+    onBoardLedOn();
     POWER_ON_REMOTE();
   } else {
+    BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
+    POWER_OFF_REMOTE();
   }
 }
 
