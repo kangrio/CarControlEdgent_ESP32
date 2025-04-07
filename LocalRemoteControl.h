@@ -7,6 +7,7 @@
 #elif defined(ESP32)
 #include "WiFi.h"
 #include "AsyncTCP.h"
+#include "esp_random.h"
 #else
 #error Platform not supported
 #endif
@@ -20,7 +21,7 @@ public:
   LocalRemoteControlClass() {
   }
 
-  void begin(const char *username, const char *passwordHash, int portNumber = 80) {
+  void begin(const char *username, const char *passwordHash, int portNumber = 8088) {
     _validUsername = username;
     _storedPasswordHash = passwordHash;
     _server = new AsyncWebServer(portNumber);
@@ -51,7 +52,7 @@ private:
     if (request->hasHeader("Cookie")) {
       String cookie = request->header("Cookie");
       int tokenIndex = cookie.indexOf("auth_token=");
-      if (tokenIndex > 0) {
+      if (tokenIndex >= 0) {
         String token = cookie.substring(tokenIndex + 11);
         token = token.substring(0, token.indexOf(";"));
         if (token == _clientToken) {
@@ -67,7 +68,12 @@ private:
     String token = "";
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     for (int i = 0; i < 32; i++) {
-      token += charset[random(0, sizeof(charset) - 1)];
+      #if defined(ESP8266)
+      uint32_t r = RANDOM_REG32; // ESP8266's hardware RNG register
+      #elif defined(ESP32)
+      uint32_t r = esp_random(); // ESP32's hardware random number generator
+      #endif
+      token += charset[r % (sizeof(charset) - 1)];
     }
     return token;
   }
@@ -208,7 +214,7 @@ private:
         digitalWrite(VCC_BUTTON, HIGH);
       });
     });
-    timer.setTimeout(10000, [this]() {
+    timer.setTimeout(6000, [this]() {
       powerOffRemote();
     });
   }
