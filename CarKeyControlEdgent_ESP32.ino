@@ -5,7 +5,11 @@
 
 /* 
 ## Library
+- [**arduino-esp32** : 2.0.17](https://github.com/espressif/arduino-esp32)
 - [**Blynk** : 1.3.2](https://github.com/blynkkk/blynk-library)
+- [**ezTime** : 0.8.3](https://github.com/ropg/ezTime)
+- [**ESPAsyncTCP** : 1.2.4](https://github.com/dvarrel/ESPAsyncTCP)
+- [**ESPAsyncWebServer** : 3.3.12](https://github.com/ESP32Async/ESPAsyncWebServer)
 - [**RemoteSerial** : 0.0.1](https://github.com/kangrio/RemoteSerial)
 - [**ESP32-TWAI-CAN** : 1.0](https://github.com/handmade0octopus/ESP32-TWAI-CAN)
 - [**AntiDelay version** : 1.1.3](https://github.com/martinvichnal/AntiDelay)
@@ -292,9 +296,13 @@ void powerButtonAction(int state) {
   uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
+    BlynkState::set(MODE_KEYPRESS);
+    onBoardLedOn();
     POWER_ON_REMOTE();
   } else {
+    BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
+    POWER_OFF_REMOTE();
   }
 }
 
@@ -583,7 +591,4 @@ void setup() {
 
 void loop() {
   BlynkEdgent.run();
-  ObdDevice.run();
-  ArduinoOTA.handle();
-  MqttClient.mqttHandle();
 }
