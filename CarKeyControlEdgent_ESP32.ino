@@ -89,6 +89,7 @@
 #include "BlynkEdgent.h"
 #include <PubSubClient.h>
 #include "MqttClient.h"
+#include "LocalRemoteControl.h"
 
 String client_id = "esp32-client-";
 
@@ -399,6 +400,7 @@ BLYNK_CONNECTED() {
 
   if (!isSetupComplete) {
     setupArduinoOTA();
+    LocalRemoteControl.begin(Secrets.localRemoteControlUsername, Secrets.localRemoteControlPassword);
 
     timer.setTimeout(1000L, []() {
       sendObd0100();
