@@ -133,89 +133,19 @@ private:
       String button = request->arg("button");
 
       if (button.equals("lock")) {
-        lockDoor();
+        KeyFop.simulateLock();
       } else if (button.equals("unlock")) {
-        unlockDoor();
+        KeyFop.simulateUnlock();
       } else if (button.equals("trunk")) {
-        toggleTrunk();
+        KeyFop.simulateToggleTrunk();
       } else if (button.equals("startstop")) {
-        startStop();
+        KeyFop.simulateStartStop();
       } else {
         request->send(501);
         return;
       }
 
       request->send(200);
-    });
-  }
-
-  void powerOnRemote() {
-    digitalWrite(POWER_PIN, LOW);
-  }
-
-  void powerOffRemote() {
-    digitalWrite(POWER_PIN, HIGH);
-  }
-
-  void lockDoor() {
-    powerOnRemote();
-    timer.setTimeout(300, [this]() {
-      timer.setTimer(
-        100, [this]() {
-          uint8_t pin = CLOSE_DOOR_PIN;
-          uint8_t current = digitalRead(pin);
-          current == HIGH ? digitalWrite(pin, LOW) : digitalWrite(pin, HIGH);
-        },
-        2);
-    });
-    timer.setTimeout(1000, [this]() {
-      powerOffRemote();
-    });
-  }
-
-  void unlockDoor() {
-    powerOnRemote();
-    timer.setTimeout(300, [this]() {
-      timer.setTimer(
-        100, [this]() {
-          uint8_t pin = OPEN_DOOR_PIN;
-          uint8_t current = digitalRead(pin);
-          current == HIGH ? digitalWrite(pin, LOW) : digitalWrite(pin, HIGH);
-        },
-        2);
-    });
-    timer.setTimeout(1000, [this]() {
-      powerOffRemote();
-    });
-  }
-
-  void toggleTrunk() {
-    powerOnRemote();
-    timer.setTimeout(300, [this]() {
-      timer.setTimer(
-        100, [this]() {
-          uint8_t pin = TOGGLE_TRUNK_PIN;
-          uint8_t current = digitalRead(pin);
-          current == HIGH ? digitalWrite(pin, LOW) : digitalWrite(pin, HIGH);
-        },
-        4);
-    });
-    timer.setTimeout(1000, [this]() {
-      powerOffRemote();
-    });
-  }
-
-  void startStop() {
-    powerOnRemote();
-    timer.setTimeout(300, [this]() {
-      uint8_t pin = VCC_BUTTON;
-      digitalWrite(pin, LOW);
-      timer.setTimeout(5000, [this]() {
-        digitalWrite(VCC_BUTTON, HIGH);
-      });
-    });
-    timer.setTimeout(6000, [this]() {
-      powerOffRemote();
     });
   }
 

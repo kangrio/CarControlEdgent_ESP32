@@ -86,6 +86,7 @@
 
 #include <ArduinoOTA.h>
 #include <ezTime.h>
+#include "KeyFop.h"
 #include "BlynkEdgent.h"
 #include <PubSubClient.h>
 #include "MqttClient.h"
@@ -109,9 +110,6 @@ uint8_t carBatterySoc = 0;
 uint32_t carOdoMeter = 0;
 uint16_t carRangeLeft = 0;
 
-
-
-
 /* Key press Var */
 uint16_t sleepTimeForTurnOnKey = 300;
 
@@ -126,70 +124,6 @@ uint8_t releaseKeyFopButton = HIGH;
 /* TimerId */
 int8_t vccButtonTimerId, lockButtonTimerId, unlockButtonTimerId, trunkButtonTimerId = BlynkTimer::MAX_TIMERS;
 
-void RESET_ALL_KEY() {
-  digitalWrite(CLOSE_DOOR_PIN, HIGH);
-  digitalWrite(OPEN_DOOR_PIN, HIGH);
-  digitalWrite(TOGGLE_TRUNK_PIN, HIGH);
-  digitalWrite(VCC_BUTTON, HIGH);
-}
-
-void POWER_ON_REMOTE() {
-#if defined(DEBUG_MODE)
-  return;
-#endif
-  isRemotePowerOn = true;
-  digitalWrite(POWER_PIN, LOW);
-}
-
-void POWER_OFF_REMOTE() {
-  isRemotePowerOn = false;
-  digitalWrite(POWER_PIN, HIGH);
-}
-
-void VCC_STATE() {
-  digitalWrite(VCC_BUTTON, LOW);
-
-  if (isCarVccTurnedOn) {
-    Blynk.virtualWrite(V1, "Stopping...");
-    LOG_PRINT.println("Stopping...");
-
-  } else {
-    Blynk.virtualWrite(V1, "Starting...");
-    LOG_PRINT.println("Starting...");
-  }
-}
-
-
-void CLOSE_DOOR() {
-  LOG_PRINT.println("Door close");
-
-  digitalWrite(CLOSE_DOOR_PIN, LOW);
-}
-
-void OPEN_DOOR() {
-  LOG_PRINT.println("Door open");
-
-  digitalWrite(OPEN_DOOR_PIN, LOW);
-}
-
-void pressTrunkButton() {
-  digitalWrite(TOGGLE_TRUNK_PIN, LOW);
-}
-
-void releaseTrunkButton() {
-  digitalWrite(TOGGLE_TRUNK_PIN, HIGH);
-}
-
-void TOGGLE_TRUNK() {
-  LOG_PRINT.println("Toggle Trunk");
-
-  pressTrunkButton();
-  timer.setTimer(100L, []() {
-    uint8_t current = digitalRead(TOGGLE_TRUNK_PIN);
-    current == pressKeyFopButton ? releaseTrunkButton() : pressTrunkButton();
-  }, 3);
-}
-
 void onBoardLedOn() {
   ledcWrite(BOARD_LEDC_CHANNEL_1, TO_PWM(255));
 }
@@ -201,7 +135,6 @@ void onBoardLedOff() {
 void deleteTimer(int8_t *timerId) {
   timer.deleteTimer(*timerId);
   *timerId = BlynkTimer::MAX_TIMERS;
-  LOG_PRINT.println(timer.getNumTimers());
 }
 
 void vccButtonAction(int state) {
@@ -210,17 +143,23 @@ void vccButtonAction(int state) {
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
-    POWER_ON_REMOTE();
-    RESET_ALL_KEY();
-    vccButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, VCC_STATE);
+    vccButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, [](){
+      if (isCarVccTurnedOn) {
+        Blynk.virtualWrite(V1, "Stopping...");
+        LOG_PRINT.println("Stopping...");
+
+      } else {
+        Blynk.virtualWrite(V1, "Starting...");
+        LOG_PRINT.println("Starting...");
+      }
+      KeyFop.simulateStartStop();
+    });
   } else {
-    sendObd0100();
-    ObdDevice.sendObdFrame(0x05);
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
     deleteTimer(&vccButtonTimerId);
-    RESET_ALL_KEY();
-    POWER_OFF_REMOTE();
+    sendObd0100();
+    ObdDevice.sendObdFrame(0x05);
     updateCarStatus();
   }
 }
@@ -229,24 +168,27 @@ void lockButtonAction(int state) {
   uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
-    startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
-    POWER_ON_REMOTE();
-    RESET_ALL_KEY();
-    timer.setTimeout(sleepTimeForTurnOnKey, CLOSE_DOOR);
+    KeyFop.turnOnKeyFop();
+    lockButtonTimerId = (int) timer.setTimeout(300, [](){
+      KeyFop.pressLockButton();
+    });
   } else {
-    onBoardLedOff();
-    if (millis() - startPressedTime > sleepTimeForTurnOnKey) {
-      LOG_PRINT.println("released rapid Lock BUtton");
-      RESET_ALL_KEY();
-      timer.setTimeout(500, POWER_OFF_REMOTE);
-    } else {
-      LOG_PRINT.println("released Lock BUtton");
-      timer.setTimeout(sleepTimeForTurnOnKey + 50, RESET_ALL_KEY);
-      timer.setTimeout(sleepTimeForTurnOnKey + 300, POWER_OFF_REMOTE);
-    }
     BlynkState::set(MODE_RUNNING);
+    onBoardLedOff();
+    xTaskCreate(
+      [](void *pvParameters) {
+        while (KeyFop.getLockButtonState() != KeyFop.ButtonPressedState) {
+          vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        KeyFop.releaseLockButton();
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        KeyFop.turnOffKeyFop();
+        vTaskDelete(NULL);
+      },
+      NULL, 2048, NULL, 1, NULL);
   }
 }
 
@@ -254,24 +196,27 @@ void unlockButtonAction(int state) {
   uint8_t pinValue = state % 2;
 
   if (pinValue > 0) {
-    startPressedTime = millis();
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
-    POWER_ON_REMOTE();
-    RESET_ALL_KEY();
-    timer.setTimeout(sleepTimeForTurnOnKey, OPEN_DOOR);
+    KeyFop.turnOnKeyFop();
+    unlockButtonTimerId = (int) timer.setTimeout(300, [](){
+      KeyFop.pressUnlockButton();
+    });
   } else {
-    onBoardLedOff();
-    if (millis() - startPressedTime > sleepTimeForTurnOnKey) {
-      LOG_PRINT.println("released rapid unLock BUtton");
-      RESET_ALL_KEY();
-      timer.setTimeout(500, POWER_OFF_REMOTE);
-    } else {
-      LOG_PRINT.println("released unLock BUtton");
-      timer.setTimeout(sleepTimeForTurnOnKey + 50, RESET_ALL_KEY);
-      timer.setTimeout(sleepTimeForTurnOnKey + 300, POWER_OFF_REMOTE);
-    }
     BlynkState::set(MODE_RUNNING);
+    onBoardLedOff();
+    xTaskCreate(
+      [](void *pvParameters) {
+        while (KeyFop.getUnlockButtonState() != KeyFop.ButtonPressedState) {
+          vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        KeyFop.releaseUnlockButton();
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        KeyFop.turnOffKeyFop();
+        vTaskDelete(NULL);
+      },
+      NULL, 2048, NULL, 1, NULL);
   }
 }
 
@@ -281,15 +226,13 @@ void trunkButtonAction(int state) {
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
-    POWER_ON_REMOTE();
-    RESET_ALL_KEY();
-    trunkButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, TOGGLE_TRUNK);
+    trunkButtonTimerId = (int) timer.setTimeout(sleepTimeForTurnOnKey, [](){
+      KeyFop.simulateToggleTrunk();
+    });
   } else {
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
     deleteTimer(&trunkButtonTimerId);
-    RESET_ALL_KEY();
-    POWER_OFF_REMOTE();
   }
 }
 
@@ -299,11 +242,11 @@ void powerButtonAction(int state) {
   if (pinValue > 0) {
     BlynkState::set(MODE_KEYPRESS);
     onBoardLedOn();
-    POWER_ON_REMOTE();
+    KeyFop.turnOnKeyFop();
   } else {
     BlynkState::set(MODE_RUNNING);
     onBoardLedOff();
-    POWER_OFF_REMOTE();
+    KeyFop.turnOffKeyFop();
   }
 }
 
@@ -387,8 +330,8 @@ void notifyCarTrunkOpenned() {
 }
 
 BLYNK_DISCONNECTED() {
-  POWER_OFF_REMOTE();
-  RESET_ALL_KEY();
+  KeyFop.releaseAllButton();
+  KeyFop.turnOffKeyFop();
   offlineTimestamp = millis();
 }
 
@@ -498,8 +441,6 @@ void checkCarTrunkClosedState() {
   }
 }
 
-
-
 void checkCarVccTurnedOnState() {
   if (isCarVccTurnedOn != ObdDevice.myCarState.carVccTurnedOnState) {
     isCarVccTurnedOn = ObdDevice.myCarState.carVccTurnedOnState;
@@ -565,21 +506,7 @@ void sendObd0100() {
 
 void setup() {
   Serial.begin(9600);
-
-  pinMode(CLOSE_DOOR_PIN, OUTPUT);
-  pinMode(OPEN_DOOR_PIN, OUTPUT);
-  pinMode(TOGGLE_TRUNK_PIN, OUTPUT);
-  pinMode(VCC_BUTTON, OUTPUT);
-  pinMode(POWER_PIN, OUTPUT);
-  pinMode(GND_PIN, OUTPUT);
-
-  digitalWrite(CLOSE_DOOR_PIN, HIGH);
-  digitalWrite(OPEN_DOOR_PIN, HIGH);
-  digitalWrite(TOGGLE_TRUNK_PIN, HIGH);
-  digitalWrite(VCC_BUTTON, HIGH);
-  digitalWrite(POWER_PIN, HIGH);
-  digitalWrite(GND_PIN, HIGH);
-
+  KeyFop.begin();
 
   delay(1000);
 
