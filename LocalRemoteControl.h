@@ -84,12 +84,24 @@ private:
         request->redirect("/");
         return;
       }
-      request->send(200, "text/html", loginPage);
+
+      _loginCsrfToken = generateToken();
+      String pageWithCsrf = loginPage;
+      pageWithCsrf.replace("<!--CSRF_TOKEN-->", 
+                        "<input type='hidden' name='csrf_token' value='" + _loginCsrfToken + "'>");
+
+      request->send(200, "text/html", pageWithCsrf);
     });
 
     _server->on("/login", HTTP_POST, [this](AsyncWebServerRequest *request) {
       if (millis() - lastAttemptTime < 10000 && failedAttempts > 3) {
         request->send(429, "text/plain", "Too many attempts. Try again later in " + String((10000 - (millis() - lastAttemptTime))/1000) + " second");
+        return;
+      }
+
+      String submittedToken = request->arg("csrf_token");
+      if (submittedToken != _loginCsrfToken) {
+        request->send(403, "text/plain", "Invalid request");
         return;
       }
 
@@ -100,33 +112,52 @@ private:
         String token = generateToken();
         _clientToken = token;
         save_token(token);
+        _csrfToken = generateToken();
         String cookieHeader = "Set-Cookie: auth_token=" + token + "; HttpOnly; SameSite=Strict";
 
-        AsyncWebServerResponse* response = request->beginResponse(302, "text/html", controlPage);
+        AsyncWebServerResponse* response = request->beginResponse(302, "text/html", "");
         response->addHeader("Location", "/");
         response->addHeader("Set-Cookie", cookieHeader);
         request->send(response);
       } else {
         lastAttemptTime = millis();
         failedAttempts++;
+        _loginCsrfToken = generateToken();
         request->redirect("/login");
       }
+    });
+
+    _server->on("/logout", HTTP_POST, [this](AsyncWebServerRequest *request) {
+      _clientToken = generateToken();
+      save_token(_clientToken);
+      
+      AsyncWebServerResponse* response = request->beginResponse(302, "text/html", "");
+      response->addHeader("Location", "/login");
+      response->addHeader("Set-Cookie", "Set-Cookie: auth_token=; HttpOnly; SameSite=Strict; Max-Age=0");
+      request->send(response);
     });
   }
 
   void setupControl() {
     _server->on("/", HTTP_GET, [this](AsyncWebServerRequest *request) {
       if (isAuthenticated(request)) {
-        request->send(200, "text/html", controlPage);
+        String pageWithCsrf = controlPage;
+        pageWithCsrf.replace("$$CSRF_TOKEN$$", _csrfToken);      
+        request->send(200, "text/html", pageWithCsrf);
         return;
       }
       request->redirect("/login");
     });
 
     _server->on("/action", HTTP_POST, [this](AsyncWebServerRequest *request) {
-      String authHeader = request->header("Authorization");
       if (!isAuthenticated(request)) {
         request->redirect("/login");
+        return;
+      }
+
+      String submittedToken = request->arg("csrf_token");
+      if (submittedToken != _csrfToken) {
+        request->send(403, "text/plain", "Invalid request token");
         return;
       }
 
@@ -152,6 +183,8 @@ private:
   String _validUsername;
   String _storedPasswordHash;
   String _clientToken;
+  String _csrfToken;
+  String _loginCsrfToken;
   AsyncWebServer *_server;
   uint8_t failedAttempts = 0;
   uint32_t lastAttemptTime = 0;

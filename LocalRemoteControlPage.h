@@ -103,6 +103,7 @@ const char* loginPage = R"rawliteral(
         <label for="password">Password:</label>
         <input type="password" id="password" name="password" required>
       </div>
+      <!--CSRF_TOKEN-->
       <button type="submit">Login</button>
       <p id="error-message" class="error-message"></p>
     </form>
@@ -190,6 +191,14 @@ const char* controlPage = R"rawliteral(
       background-color: #d32f2f;
     }
 
+    .button-group button.logout {
+      background-color: #b23b3b;
+    }
+
+    .button-group button.logout:hover {
+      background-color: #ac3939;
+    }
+
     .error-message {
       color: red;
       height: 14px;
@@ -226,6 +235,7 @@ const char* controlPage = R"rawliteral(
       <button id="unlockButton">Unlock</button>
       <button id="trunkButton">Trunk</button>
       <button id="startStopButton" class="stop">Start/Stop</button>
+      <button id="logoutButton" class="logout">Logout</button>
     </div>
     <p id="success-message" class="success-message"></p>
     <p id="error-message" class="error-message"></p>
@@ -240,7 +250,7 @@ const char* controlPage = R"rawliteral(
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({ button: button}),
+        body: new URLSearchParams({ button: button, csrf_token: '$$CSRF_TOKEN$$'}),
       }
       fetch("/action", options)
       .then(response => {
@@ -271,6 +281,15 @@ const char* controlPage = R"rawliteral(
 
     document.getElementById("startStopButton").addEventListener("click", function() {
       sendPostRequest('startstop');
+    });
+    
+    document.getElementById("logoutButton").addEventListener("click", function() {
+      fetch("/logout", {method: 'POST'})
+      .then(response => {
+        if (response.redirected) {
+          window.location.replace(response.url);
+        }
+      })
     });
   </script>
 

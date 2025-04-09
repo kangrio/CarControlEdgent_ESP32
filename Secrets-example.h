@@ -4,11 +4,15 @@
 class SecretsClass {
 public:
   // password for arduinoOTA hashed with md5
-  const char *passWordHashed = "827ccb0eea8a706c4c34a16891f84e7b";
+  const char *passWordHashed = "827ccb0eea8a706c4c34a16891f84e7b"; // 12345
 
   // password for RemoteSerial
   const char *remoteSerialUsername = "username";
   const char *remoteSerialPassword = "12345";
+
+  // password for LocalRemoteControl
+  const char *localRemoteControlUsername = "username";
+  const char *localRemoteControlPasswordHashed = "827ccb0eea8a706c4c34a16891f84e7b"; // 12345
 
   // Sinric Pro
   const char *APP_KEY = "APP_KEY";
