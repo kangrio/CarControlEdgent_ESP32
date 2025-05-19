@@ -343,7 +343,7 @@ BLYNK_CONNECTED() {
 
   if (!isSetupComplete) {
     setupArduinoOTA();
-    LocalRemoteControl.begin(Secrets.localRemoteControlUsername, Secrets.localRemoteControlPassword);
+    LocalRemoteControl.begin(Secrets.localRemoteControlUsername, Secrets.localRemoteControlPasswordHashed);
 
     timer.setTimeout(1000L, []() {
       sendObd0100();
@@ -481,6 +481,9 @@ void checkCarOdoMeterValue() {
 void checkCarRangeLeftValue() {
   if (carRangeLeft != ObdDevice.myCarState.carRangeLeft) {
     carRangeLeft = ObdDevice.myCarState.carRangeLeft;
+    if (isCarVccTurnedOn) {
+      ObdDevice.sendObdFrame(0x05);
+    }
     updateCarStatus();
   }
 }
@@ -496,6 +499,7 @@ void updateCarStatus() {
 
   String textCarDetail = "ODO: " + String(carOdoMeter) + " Km" + ", Range: " + String(carRangeLeft) + " Km";
 
+  Blynk.virtualWrite(V0, (int) isCarVccTurnedOn);
   Blynk.setProperty(V1, "label", textCarDetail);
   Blynk.virtualWrite(V1, textState);
 }

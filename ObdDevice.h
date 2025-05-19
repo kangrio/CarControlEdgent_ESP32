@@ -263,9 +263,6 @@ public:
           uint16_t lsb = frame.data[1];
           uint16_t msb = frame.data[2] & 0x0f;
           myCarState.carRangeLeft = lsb + (msb * 256);
-          if (myCarState.carVccTurnedOnState) {
-            sendObdFrame(0x05);
-          }
           break;
         }
       case 0x5:
