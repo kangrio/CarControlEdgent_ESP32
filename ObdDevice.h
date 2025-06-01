@@ -212,21 +212,22 @@ public:
     /**
     Closed:
     0001 1010 1A
-    0001 0100 14
+    0001 0100 14 // unusable
     0001 0110 16
-    0001 1000 18
+    0001 1000 18 // unusable
 
     Opened:
     0001 0101 15
     0001 1001 19
+    0001 0100 14 // unusable
+    0001 1000 18 // unusable
     */
 
-    /* Trunk Closed*/
-    if (frame.data[1] & (1 << 0)) {
+    if ((frame.data[1] & 0b11) == 0b01) { // Trunk Opened
       if (myCarState.carTrunkClosedState == true) {
         myCarState.carTrunkClosedState = false;
       }
-    } else {
+    } else if((frame.data[1] & 0b11) == 0b10) { // Trunk Closed
       if (myCarState.carTrunkClosedState == false) {
         myCarState.carTrunkClosedState = true;
       }
