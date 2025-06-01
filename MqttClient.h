@@ -24,7 +24,7 @@ public:
   }
 
   void updateTrunkState(String state) {
-    mqttClient.publish(Secrets.topic, state.c_str());
+    mqttClient.publish(Secrets.topic, state.c_str(), true);
   }
 
   void mqttHandle() {
