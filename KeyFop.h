@@ -13,6 +13,12 @@
 
 #define DELAY_BEFORE_KEY_FOP_TURNEDON 300
 
+#if DELAY_BEFORE_KEY_FOP_TURNEDON == 0
+  #define KEY_FOP_ALWAYS_TURNED_ON true
+#else
+  #define KEY_FOP_ALWAYS_TURNED_ON false
+#endif
+
 class KeyFopClass {
 public:
   uint8_t ButtonPressedState = LOW;
@@ -20,7 +26,12 @@ public:
 
   void begin() {
     setupPinMode();
-    turnOffKeyFop();
+    // (KEY_FOP_ALWAYS_TURNED_ON) ? turnOnKeyFop() : turnOffKeyFop();
+    if (KEY_FOP_ALWAYS_TURNED_ON) {
+      turnOnKeyFop();
+    } else {
+      turnOffKeyFop();
+    }
     releaseAllButton();
   }
 
@@ -155,7 +166,9 @@ private:
     vTaskDelay(100 / portTICK_PERIOD_MS);
     self->releaseLockButton();
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    self->turnOffKeyFop();
+    if (!KEY_FOP_ALWAYS_TURNED_ON) {
+      self->turnOffKeyFop();
+    }
     vTaskDelete(NULL);
   }
   
@@ -168,7 +181,9 @@ private:
     vTaskDelay(100 / portTICK_PERIOD_MS);
     self->releaseUnlockButton();
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    self->turnOffKeyFop();
+    if (!KEY_FOP_ALWAYS_TURNED_ON) {
+      self->turnOffKeyFop();
+    }
     vTaskDelete(NULL);
   }
     
@@ -185,7 +200,9 @@ private:
     vTaskDelay(100 / portTICK_PERIOD_MS);
     self->releaseTrunkButton();
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    self->turnOffKeyFop();
+    if (!KEY_FOP_ALWAYS_TURNED_ON) {
+      self->turnOffKeyFop();
+    }
     vTaskDelete(NULL);
   }
       
@@ -198,7 +215,9 @@ private:
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     self->releaseStartStopButton();
     vTaskDelay(200 / portTICK_PERIOD_MS);
-    self->turnOffKeyFop();
+    if (!KEY_FOP_ALWAYS_TURNED_ON) {
+      self->turnOffKeyFop();
+    }
     vTaskDelete(NULL);
   }
 };
